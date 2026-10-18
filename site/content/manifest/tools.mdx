@@ -1,0 +1,58 @@
+---
+title: tools
+description: Declare executables that mead builds from source at a locked commit, per project, and runs with mead exec.
+seo:
+  title: "Declaring tools in meade.kdl"
+icon: wrench
+---
+
+```kdl
+tools {
+    tool "assetgen" git="https://github.com/example-author/assetgen.git" tag="v0.4.0" distribution="build" target="assetgen"
+}
+```
+
+`tools` takes no arguments or properties. Its only allowed child is `tool`.
+
+## `tool`
+
+### Argument
+
+<TypeTable
+  type={{
+    name: {
+      type: "string",
+      required: true,
+      description: "The name you pass to `mead exec`, and the directory name under deps/.tools/. It follows the same [rules](/manifest/validation#names) as dependency names. Tool names are unique among tools, case-insensitively.",
+    },
+  }}
+/>
+
+### Properties
+
+<TypeTable
+  type={{
+    git: {
+      type: "string",
+      required: true,
+      description: "The origin URL.",
+    },
+    "tag | branch | rev | release": {
+      type: "string",
+      required: true,
+      description: "Exactly one [revision selector](/guide/selectors).",
+    },
+    distribution: {
+      type: "\"build\" | \"asset\"",
+      default: "\"build\"",
+      description: "How the tool is obtained. Only `build` (compile from source) works today. mead recognizes `asset` and rejects it: `distribution=\"asset\"` needs release asset contracts, which this mead does not support yet.",
+    },
+    target: {
+      type: "string",
+      default: "the tool name",
+      description: "The name of an executable target in the tool author's meade.kdl. It can't be empty.",
+    },
+  }}
+/>
+
+`tool` takes no children. For how tools are built, cached, and installed, see [Project tools](/guide/tools).

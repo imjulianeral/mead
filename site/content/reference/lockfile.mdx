@@ -1,0 +1,186 @@
+---
+title: mead.lock
+description: The committed lockfile. Exact origins, selectors, refs, commits, and package paths, encoded as JSON.
+seo:
+  title: "mead.lock lockfile format"
+icon: lock
+---
+
+`mead.lock` lives beside `meade.kdl`. **Commit it.** `mead install` and `mead update` write it, and other commands only read it. mead rewrites the file only when its content changes, as 2-space-indented JSON with a trailing newline.
+
+```json mead.lock lineNumbers
+{
+  "version": 1,
+  "manifest_hash": "sha256:1f2aeeff7fcff232285a08c3412f5a1da46f6ff90f9cd919e981278306508764",
+  "dependencies": [
+    {
+      "name": "example_pkg",
+      "source": {
+        "git": "https://github.com/example-author/geometry.git",
+        "selector": { "kind": "release", "value": "v1.2.3" },
+        "ref": "refs/tags/v1.2.3",
+        "object_format": "sha1",
+        "commit": "6e93eafa715d63bd5812728df4b8c8ff2b70f3ce",
+        "release_id": 184467201
+      },
+      "requested_path": "src/geometry",
+      "package_path": "src/geometry",
+      "author_manifest": true,
+      "dependencies": []
+    }
+  ],
+  "tools": [
+    {
+      "name": "assetgen",
+      "source": {
+        "git": "https://github.com/example-author/assetgen.git",
+        "selector": { "kind": "tag", "value": "v0.4.0" },
+        "ref": "refs/tags/v0.4.0",
+        "object_format": "sha1",
+        "commit": "7e1e798f44a1c3b0d0f9a2e6f1d4c7b8a9e0f1d2",
+        "release_id": 0
+      },
+      "distribution": "build",
+      "target": {
+        "name": "assetgen",
+        "kind": "executable",
+        "path": "cmd/assetgen",
+        "flags": ["-o:speed"]
+      }
+    }
+  ]
+}
+```
+
+## Top level
+
+<TypeTable
+  type={{
+    version: {
+      type: "1",
+      required: true,
+      description: "The lockfile format version. Any other value is rejected: `has unsupported lockfile version 2 (this mead writes version 1)`.",
+    },
+    manifest_hash: {
+      type: "string",
+      required: true,
+      description: "`sha256:` followed by the hex digest of the canonical declaration text (see below). `install --locked` compares it with the current manifest.",
+    },
+    dependencies: {
+      type: "LockedDependency[]",
+      required: true,
+      description: "One entry per manifest dependency, in manifest order.",
+    },
+    tools: {
+      type: "LockedTool[]",
+      required: true,
+      description: "One entry per manifest tool, in manifest order.",
+    },
+  }}
+/>
+
+## `source` (LockedSource)
+
+The exact identity of one Git source. Dependencies and tools share this shape.
+
+<TypeTable
+  type={{
+    git: {
+      type: "string",
+      required: true,
+      description: "The origin, copied from the manifest. It's validated when the lockfile loads.",
+    },
+    selector: {
+      type: "{ kind, value }",
+      required: true,
+      description: "The manifest selector: `kind` is `tag`, `branch`, `rev`, or `release`.",
+    },
+    ref: {
+      type: "string",
+      required: true,
+      description: "The fully qualified ref, such as `refs/tags/v1.2.3` or `refs/heads/main`. It's empty for `rev`. If it isn't empty, it must start with `refs/` and be a valid ref name.",
+    },
+    object_format: {
+      type: "\"sha1\" | \"sha256\"",
+      required: true,
+      description: "The repository's Git object format.",
+    },
+    commit: {
+      type: "string",
+      required: true,
+      description: "The full commit ID: 40 or 64 hex characters. Checked on load, because locked values reach Git as arguments.",
+    },
+    release_id: {
+      type: "integer",
+      required: true,
+      description: "The GitHub release ID for `release` selectors, otherwise `0`.",
+    },
+  }}
+/>
+
+## LockedDependency
+
+<TypeTable
+  type={{
+    name: { type: "string", required: true, description: "The manifest name." },
+    source: { type: "LockedSource", required: true, description: "See above." },
+    requested_path: {
+      type: "string",
+      required: true,
+      description: "The consumer's `path=` override, or empty. A change here counts as a changed declaration.",
+    },
+    package_path: {
+      type: "string",
+      required: true,
+      description: "The package directory inside the checkout that the bare name resolves to. It comes from the consumer's path, then the author's package path, then `.`.",
+    },
+    author_manifest: {
+      type: "boolean",
+      required: true,
+      description: "Whether the dependency's repository had a valid meade.kdl at the locked commit. This decides which [name scope](/guide/transitive-dependencies#name-scopes) its imports use.",
+    },
+    dependencies: {
+      type: "string[]",
+      required: true,
+      description: "Bare names that the author's manifest declares as its own dependencies. The project provides them.",
+    },
+  }}
+/>
+
+## LockedTool
+
+<TypeTable
+  type={{
+    name: { type: "string", required: true, description: "The manifest name." },
+    source: { type: "LockedSource", required: true, description: "See above." },
+    distribution: { type: "\"build\"", required: true, description: "Copied from the manifest." },
+    target: {
+      type: "{ name, kind, path, flags }",
+      required: true,
+      description: "The author's target definition **at the locked commit**. If a later install sees a different path or different flags at the same commit, it fails: `the author's target at the locked commit differs from mead.lock`.",
+    },
+  }}
+/>
+
+## `manifest_hash`
+
+The hash covers one line per declaration, with fields separated by NUL bytes, in manifest order:
+
+```txt
+dependency␀<name>␀<git>␀<selector kind>␀<selector value>␀<path>
+tool␀<name>␀<git>␀<selector kind>␀<selector value>␀<distribution>␀<target>
+target␀<name>␀<kind>␀<path>[␀<flag>…]
+```
+
+`schema`, `package`, comments, whitespace, and property order don't affect it. Reformatting the manifest never invalidates the lock.
+
+## Load-time checks
+
+When mead loads `mead.lock`, it checks the following and stops on any failure:
+
+```txt
+mead: error: /…/mead.lock is not a valid mead lockfile: …
+mead: error: /…/mead.lock: "geometry" has an invalid commit ID "6e93ea"
+mead: error: /…/mead.lock: "geometry" has an invalid ref "tags/v1"
+mead: error: /…/mead.lock: "geometry" has an invalid origin: …
+```

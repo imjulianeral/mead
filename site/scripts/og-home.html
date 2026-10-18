@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- The home page's 1200×630 share card. Render it with `nub run og:home`. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&family=Figtree:wght@500;600&family=JetBrains+Mono:wght@400;700&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #1c1610;
+        --fg: #f3ead9;
+        --muted: #b9a88c;
+        --honey: #f6b73c;
+        --honey-deep: #d98a1f;
+        --border: #3a2f22;
+        --term: #120e0a;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: Figtree, sans-serif;
+      }
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        padding: 64px 72px;
+        display: grid;
+        grid-template-columns: 1fr 470px;
+        gap: 48px;
+        align-items: center;
+        background:
+          radial-gradient(circle at 78% 30%, rgb(246 183 60 / 0.16), transparent 55%),
+          radial-gradient(circle at 10% 110%, rgb(217 138 31 / 0.14), transparent 50%),
+          var(--bg);
+      }
+      .comb {
+        position: absolute;
+        inset: 0;
+        color: rgb(246 183 60 / 0.09);
+        -webkit-mask-image: radial-gradient(circle at 80% 35%, black, transparent 70%);
+        mask-image: radial-gradient(circle at 80% 35%, black, transparent 70%);
+      }
+      .copy,
+      .terminal {
+        position: relative;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-family: Fraunces, serif;
+        font-size: 34px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand svg {
+        width: 46px;
+        height: 46px;
+      }
+      h1 {
+        margin-top: 40px;
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 62px;
+        line-height: 1.04;
+        letter-spacing: -0.02em;
+      }
+      h1 em {
+        color: var(--honey);
+      }
+      .sub {
+        margin-top: 22px;
+        font-size: 25px;
+        line-height: 1.35;
+        color: var(--muted);
+      }
+      .pills {
+        margin-top: 34px;
+        display: flex;
+        gap: 10px;
+      }
+      .pills span {
+        padding: 7px 14px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--fg);
+        background: rgb(255 255 255 / 0.03);
+      }
+      .terminal {
+        border-radius: 16px;
+        overflow: hidden;
+        background: var(--term);
+        border: 1px solid var(--border);
+        box-shadow:
+          0 30px 70px -20px rgb(0 0 0 / 0.7),
+          0 0 0 7px rgb(246 183 60 / 0.1);
+        transform: rotate(-1.2deg);
+      }
+      .bar {
+        display: flex;
+        gap: 8px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .bar i {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #4a3c2c;
+      }
+      .bar i:first-child {
+        background: var(--honey);
+      }
+      pre {
+        padding: 20px 22px 24px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 17px;
+        line-height: 1.75;
+        white-space: pre;
+      }
+      b {
+        color: var(--honey);
+      }
+      .dim {
+        color: #8d7f69;
+      }
+      .ok {
+        color: #a6d785;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg class="comb" aria-hidden="true" width="1200" height="630">
+        <defs>
+          <pattern id="c" width="56" height="97" patternUnits="userSpaceOnUse" patternTransform="scale(1.15)">
+            <path
+              d="M28 0 56 16.2v32.3L28 64.7 0 48.5V16.2Z M28 64.7v32.3 M0 97V80.8 M56 97V80.8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+            />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#c)" />
+      </svg>
+
+      <div class="copy">
+        <div class="brand">
+          <svg viewBox="0 0 32 32" fill="none" stroke="#f6b73c" stroke-width="2.2" stroke-linejoin="round">
+            <path d="M16 2.5 27.7 9.25v13.5L16 29.5 4.3 22.75V9.25Z" />
+            <path
+              d="M16 9.5c-2.6 3.4-4.2 5.9-4.2 8.1a4.2 4.2 0 0 0 8.4 0c0-2.2-1.6-4.7-4.2-8.1Z"
+              fill="#f6b73c"
+              stroke="none"
+            />
+          </svg>
+          mead
+        </div>
+        <h1>Packages, poured <em>straight from the source.</em></h1>
+        <p class="sub">A Git-native package manager for the Odin programming language.</p>
+        <div class="pills"><span>No registry</span><span>No account</span><span>Exact commits</span></div>
+      </div>
+
+      <div class="terminal">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <pre><b>$</b> mead add https://github.com/…/geometry \
+    --as geometry --tag v1.2.3
+<span class="dim">added dependency "geometry"</span>
+<b>$</b> mead install
+<span class="dim">resolved geometry: tag v1.2.3</span>
+<span class="dim">  -&gt; 6e93eafa715d</span>
+<span class="ok">installed 1 dependency</span>
+<b>$</b> mead run app
+<span class="dim">building app…</span></pre>
+      </div>
+    </div>
+  </body>
+</html>

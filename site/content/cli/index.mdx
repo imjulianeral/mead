@@ -1,0 +1,94 @@
+---
+title: CLI overview
+description: The mead command line. Global options, conventions, output streams, and exit codes, plus a map of every command.
+seo:
+  title: "mead CLI reference: commands, options, exit codes"
+icon: terminal
+sidebar:
+  label: Overview
+---
+
+<Synopsis cmd="mead [-v | -q] <command> [arguments]" />
+
+Global options come **before** the command. mead parses them left to right and dispatches as soon as it reaches the first argument that isn't an option.
+
+## Global options
+
+<TypeTable
+  type={{
+    "-v, --verbose": {
+      type: "flag",
+      description: "Print every subprocess mead runs (git, odin, clang) as `mead: run: …`, plus debug notes such as local packages that shadow a dependency name.",
+    },
+    "-q, --quiet": {
+      type: "flag",
+      description: "Show only errors. Suppresses informational lines like `resolved …` and `installed …`. Warnings and command output (for example from tree, env, and versions) still print.",
+    },
+    "-h, --help, help": {
+      type: "flag",
+      description: "Print usage and exit 0.",
+    },
+    "--version": {
+      type: "flag",
+      description: "Print `mead 0.1.0` and exit 0.",
+    },
+  }}
+/>
+
+Running `mead` with no command prints usage and exits with status **2**. An unknown option prints `` mead: error: unknown option "-x" (see `mead --help`) ``.
+
+## Commands
+
+| Command | Summary | Needs network | Needs Odin |
+| --- | --- | --- | --- |
+| [`init [name]`](/cli/init) | Create a minimal `meade.kdl` and update `.gitignore`. | No | No |
+| [`versions <git-url>`](/cli/versions) | List GitHub releases, version tags, other tags, and branches. | Yes | No |
+| [`add <git-url> …`](/cli/add) | Check a selection and record it in `meade.kdl`. | Yes¹ | No |
+| [`install [--locked] [--offline]`](/cli/install) | Install locked selections and resolve new ones. | If anything is unlocked or uncached | Only for tools |
+| [`update [name...]`](/cli/update) | Resolve selections again and report old and new commits. | Yes | Only for tools |
+| [`build [target]`](/cli/build) | Compile a target in a generated copy with resolved imports. | No | Yes |
+| [`run [target] [-- args...]`](/cli/run) | Build and run an executable target. | No | Yes |
+| [`exec <tool> [-- args...]`](/cli/exec) | Run the project's installed tool. | No | No |
+| [`tree`](/cli/tree) | Show dependency origins and locked revisions. | No | No |
+| [`env`](/cli/env) | Show bindings, installed paths, and tool locations. | No | No |
+| [`upgrade [--check] [--version V]`](/cli/upgrade) | Replace mead with the latest release, or a chosen one. | Yes | No |
+
+¹ Except with `--rev`, which mead records without contacting the origin.
+
+## Conventions
+
+### Finding the project
+
+Every command except `init`, `versions`, and `upgrade` searches **upward** from the working directory for `meade.kdl`, and treats the first directory that has one as the project root:
+
+```txt
+mead: error: no meade.kdl found in /home/you/somewhere or its parent directories (run `mead init`)
+```
+
+### Output streams
+
+| Stream | What goes there |
+| --- | --- |
+| stdout | Command results: the `versions` listing, `tree`, `env`, `--help`, `--version`, and the output of programs launched by `run` and `exec`. |
+| stderr | Progress (`resolved …`, `fetching …`, `building …`), warnings (`mead: warning: …`), errors (`mead: error: …`), compiler diagnostics, and the daily [update notice](/cli/upgrade#the-daily-notice). |
+
+That means you can pipe `mead tree` or `mead env` without picking up progress noise.
+
+### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | Any `mead: error: …`. mead prints one located message and stops. |
+| `2` | `mead` was run with no command. |
+| *child's code* | `run` and `exec` exit with the launched program's exit code (or `1` if it didn't exit normally). |
+
+### Locking and atomicity
+
+- `install`, `update`, and `build` take an exclusive `flock` on `.mead/project.lock`, so two mead processes can't modify one project at the same time.
+- Shared cache entries (`git/…`, `artifacts/…`) have their own `.lock` files, so projects that share a cache are safe to run in parallel.
+- Every write to `meade.kdl`, `mead.lock`, and `state.json` goes through a temporary file and a rename.
+
+### Subprocesses
+
+mead runs `git`, `odin`, and `clang` with separate arguments and **never through a shell**. Use `-v` to see each command.

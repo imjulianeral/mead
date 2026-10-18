@@ -1,0 +1,46 @@
+/*
+  mead — a honey-cellar palette.
+  Light mode is parchment and amber; dark mode is a candle-lit cellar.
+*/
+:root {
+  --blume-background: oklch(0.985 0.012 85);
+  --blume-foreground: oklch(0.24 0.03 60);
+  --blume-muted: oklch(0.955 0.022 85);
+  --blume-muted-foreground: oklch(0.5 0.035 65);
+  --blume-border: oklch(0.89 0.03 80);
+  --blume-code-background: oklch(0.965 0.02 82);
+  --blume-code-highlight: oklch(0.93 0.06 85 / 0.6);
+
+  --mead-honey: oklch(0.78 0.16 75);
+  --mead-honey-deep: oklch(0.6 0.15 60);
+  --mead-comb: oklch(0.89 0.03 80);
+  --mead-glow: oklch(0.85 0.14 80 / 0.35);
+  --mead-ink: oklch(0.24 0.03 60);
+  --mead-cell: oklch(0.975 0.018 85);
+}
+
+:root[data-theme="dark"] {
+  --blume-background: oklch(0.17 0.014 60);
+  --blume-foreground: oklch(0.93 0.02 85);
+  --blume-muted: oklch(0.215 0.018 60);
+  --blume-muted-foreground: oklch(0.7 0.03 75);
+  --blume-border: oklch(0.3 0.025 60);
+  --blume-code-background: oklch(0.2 0.018 60);
+  --blume-code-highlight: oklch(0.35 0.06 70 / 0.5);
+
+  --mead-honey: oklch(0.8 0.15 78);
+  --mead-honey-deep: oklch(0.7 0.15 68);
+  --mead-comb: oklch(0.3 0.025 60);
+  --mead-glow: oklch(0.75 0.15 75 / 0.18);
+  --mead-ink: oklch(0.93 0.02 85);
+  --mead-cell: oklch(0.205 0.018 60);
+}
+
+.prose h1,
+article h1 {
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: var(--mead-glow);
+}

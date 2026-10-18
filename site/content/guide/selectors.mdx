@@ -1,0 +1,57 @@
+---
+title: Revision selectors
+description: Every dependency and tool chooses exactly one revision with tag, branch, rev, or release. mead resolves the selector to an exact commit and locks that commit.
+seo:
+  title: "Revision selectors: tag, branch, rev, release"
+icon: git-commit-horizontal
+---
+
+A **selection** is an origin plus exactly one revision selector. Each selector is a manifest property, and `mead add` has a matching flag.
+
+| Selector | Manifest | `mead add` flag | Resolves through | Locked `ref` |
+| --- | --- | --- | --- | --- |
+| Tag | `tag="v2.0.1"` | `--tag v2.0.1` | `git ls-remote`, `refs/tags/<tag>` (an annotated tag resolves to the commit it points to) | `refs/tags/v2.0.1` |
+| Branch | `branch="main"` | `--branch main` | `git ls-remote`, `refs/heads/<branch>` | `refs/heads/main` |
+| Commit | `rev="0123…4567"` | `--rev 0123…4567` | Nothing. The value is the commit. | empty |
+| GitHub release | `release="v1.2.3"` | `--release v1.2.3` | GitHub API `releases/tags/<tag>`, then the tag's commit | `refs/tags/v1.2.3` |
+
+## Rules
+
+- **Exactly one.** A declaration with zero selectors, or with two, is a manifest error:
+  `` "x" has both `tag` and `branch`; choose exactly one of tag, branch, rev, or release ``.
+- **Non-empty strings.** Each selector value must be a non-empty string.
+- **`rev` is a full commit ID.** A `rev` must have 40 hex characters (SHA-1) or 64 (SHA-256). mead lowercases it. It doesn't accept abbreviated IDs, because they can't be resolved remotely or locked exactly.
+- **Ref names follow Git's rules.** Tag, branch, and release values can't start with `-`. They can't contain whitespace, control characters, `~ ^ : ? * [ \`, `..`, or `@{`, and they can't end in `.lock` or `/`.
+- **`release` needs GitHub.** For other hosts, use `tag=` instead. mead rejects draft releases and accepts prereleases.
+
+## Locking
+
+On the first `mead install`, mead resolves each selector and writes the result to [`mead.lock`](/reference/lockfile). Later installs **reuse the locked commit** and don't contact the origin, even if the branch or tag has moved since.
+
+```txt
+resolved renderer: branch development -> 4b1d9c0e2a77
+```
+
+To move a selection forward, run [`mead update`](/cli/update):
+
+```txt
+updated renderer: 4b1d9c0e2a77 -> 91aa03be5f12 (refs/heads/development)
+noise is unchanged at 0123456789ab (exact commit)
+```
+
+If you edit a declaration in `meade.kdl` (its origin, selector, or `path`), mead stops and asks you to re-resolve it explicitly:
+
+```txt
+mead: error: the declaration of "renderer" in meade.kdl differs from mead.lock; run `mead update renderer` to resolve it again
+```
+
+## Fetching a locked commit
+
+mead fetches **the exact locked commit**, so a moved ref can't change what arrives. Fetches are shallow (`--depth=1`) and go into a shared bare repository in the [cache](/reference/files#shared-cache):
+
+1. mead fetches the commit by ID.
+2. If the server refuses that and the selection has a ref, mead fetches the ref and keeps it under `refs/mead/fetched/…`.
+3. If the selection is a `rev`, mead fetches all branches and tags.
+4. If the commit still doesn't exist, installation fails with the full commit ID: *"The locked identity no longer exists at the origin."*
+
+mead keeps every fetched commit reachable (`refs/mead/keep/<commit>`), so cache maintenance can't prune it.

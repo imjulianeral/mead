@@ -1,0 +1,100 @@
+---
+title: mead upgrade
+description: Replace the running mead with the latest release, or a version you choose, after verifying its checksum.
+seo:
+  title: "mead upgrade: update mead to the latest release"
+icon: arrow-up-circle
+sidebar:
+  label: upgrade
+---
+
+<Synopsis cmd="mead upgrade [--check] [--version <version>] [--force]" />
+
+`upgrade` updates mead itself, not your project. It asks GitHub for the latest stable release, downloads the build for your platform, verifies it, and swaps it in place of the binary you ran. It works from any directory and doesn't need a `meade.kdl`.
+
+## Options
+
+<TypeTable
+  type={{
+    "--check": {
+      type: "flag",
+      description: "Report whether a newer release exists and change nothing.",
+    },
+    "--version <version>": {
+      type: "string",
+      default: "the latest stable release",
+      description: "Install this release instead. `0.2.0` and `v0.2.0` name the same tag. An older version downgrades mead, and a prerelease tag works here too.",
+    },
+    "--force": {
+      type: "flag",
+      description: "Reinstall even when the chosen version is already the running one.",
+    },
+  }}
+/>
+
+## What it does
+
+<Steps>
+  <Step title="Find the release">
+    mead reads `releases/latest` (or `releases/tags/v<version>`) from the GitHub API for the repository it was built from. [`GITHUB_TOKEN`](/reference/environment#github_token--gh_token) applies here as it does for `mead versions`.
+  </Step>
+  <Step title="Download and verify">
+    mead downloads the asset for this platform, such as `mead-linux-amd64`, and the release's `SHA256SUMS`. The binary's SHA-256 must match its line in `SHA256SUMS`, and the digest GitHub reports for the asset when GitHub provides one.
+  </Step>
+  <Step title="Test the new binary">
+    mead writes the binary next to the current one as `.mead-upgrade-<pid>`, runs it with `--version`, and checks that it reports `mead <version>`.
+  </Step>
+  <Step title="Swap it in">
+    A rename replaces the old binary. Commands that are already running keep the old binary until they exit. Any failure before the rename removes the staged file and leaves the installed mead unchanged.
+  </Step>
+</Steps>
+
+## Output
+
+```txt
+$ mead upgrade --check
+mead 0.2.0 is available (you have 0.1.0); run `mead upgrade`
+
+$ mead upgrade
+downloading mead-linux-amd64 v0.2.0
+upgraded /home/you/.mead/bin/mead: 0.1.0 -> 0.2.0
+
+$ mead upgrade
+mead 0.2.0 is up to date
+```
+
+## The daily notice
+
+Other commands tell you when a newer release exists, on stderr, before they run:
+
+```txt
+mead 0.2.0 is available (you have 0.1.0). Run `mead upgrade` to update.
+```
+
+- mead contacts GitHub **at most once a day**, with a 3-second timeout. If the request fails, mead records the attempt anyway, so an offline machine doesn't retry on every command.
+- The notice prints **at most once a day**.
+- It only appears when stderr is a terminal. Pipes, scripts, and CI (`CI` set) never see it, and neither does `-q`.
+- `MEAD_NO_UPDATE_CHECK=1` turns it off completely.
+- The result is stored in `update-check.json` in the [shared cache](/reference/files#shared-cache).
+
+mead never upgrades itself without being asked. The notice only tells you that an upgrade exists.
+
+## Where releases come from
+
+Release builds record their GitHub repository at compile time, so mead installed with the [install script](/guide/installation#install-script) knows where to look. A binary you built with plain `make` doesn't. Set [`MEAD_RELEASE_REPO`](/reference/environment#mead_release_repo) to fix that, or build with `make RELEASE_REPO=owner/repo`.
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `this build of mead does not know where its releases are published; …` | Built without `RELEASE_REPO`, and `MEAD_RELEASE_REPO` isn't set. |
+| `no published mead release was found at …` | The repository has no stable release yet. |
+| `mead has no release tagged "v1.2.3"` | `--version` names a release that doesn't exist. |
+| `release vX has no build for this platform (mead-<os>-<arch>)` | The release has no binary for your OS and CPU. [Build from source](/guide/installation#build-from-source). |
+| `release vX has no SHA256SUMS file, so its binaries cannot be verified` | mead won't install a binary it can't verify. |
+| `the downloaded mead-<os>-<arch> does not match SHA256SUMS (…); nothing was changed` | The download is corrupt or was altered. |
+| `the downloaded binary reports "…" instead of "mead X"; nothing was changed` | The asset doesn't match its release tag. |
+| `the downloaded mead X does not run on this system: …` | Usually a missing shared library, such as libcurl, or a glibc that's too old. |
+| `cannot write to <dir>: …` | mead is installed in a directory you can't write to, such as `/usr/local/bin`. Rerun with the needed permissions, or reinstall with the install script. |
+| `--version needs a value, such as 0.2.0` | `--version` was the last argument. |
+| `unknown argument "x" for upgrade` | `upgrade` has no other options. |

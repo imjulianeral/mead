@@ -1,0 +1,52 @@
+---
+title: mead run
+description: Build an executable target and run it, passing arguments through and exiting with its status.
+seo:
+  title: "mead run: build and run an Odin program"
+icon: play
+sidebar:
+  label: run
+---
+
+<Synopsis cmd="mead run [target] [-- args...]" />
+
+`run` does everything [`mead build`](/cli/build) does, then executes `.mead/bin/<target>` attached to your terminal (stdin, stdout, stderr). **mead exits with the program's exit code.**
+
+## Arguments
+
+<TypeTable
+  type={{
+    target: {
+      type: "string",
+      default: "the only target",
+      description: "An executable target. Library targets are rejected: `target \"x\" is a static-library, not an executable`.",
+    },
+    "args...": {
+      type: "string[]",
+      description: "Arguments for the program. Everything after `--` is passed through unchanged. Once a target is named, the first argument that doesn't fit and everything after it also pass through.",
+    },
+  }}
+/>
+
+## Examples
+
+```bash
+mead run                         # the only target, no arguments
+mead run app -- --some-flag      # explicit target, pass-through arguments
+mead run -- --help               # the only target, program gets --help
+mead run app --verbose           # also works: --verbose goes to the program
+```
+
+The program's working directory is your current directory, not the build copy.
+
+:::tip
+Program output goes to stdout, and mead's own progress goes to stderr. With `mead -q run app`, you see only what the program prints (and any compiler errors).
+:::
+
+## Errors
+
+`run` shares every [build error](/cli/build#errors), plus this one:
+
+| Message | Cause |
+| --- | --- |
+| `target "x" is a shared-library, not an executable` | Only executables can run. |

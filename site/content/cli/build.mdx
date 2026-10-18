@@ -1,0 +1,68 @@
+---
+title: mead build
+description: Compile a target from meade.kdl in a generated build copy where bare dependency imports resolve to deps/.
+seo:
+  title: "mead build: compile Odin with bare imports"
+icon: hammer
+sidebar:
+  label: build
+---
+
+<Synopsis cmd="mead build [target]" />
+
+`build` compiles one of your project's [targets](/manifest/targets) with the stock Odin compiler, inside a [generated build copy](/guide/bare-imports) that maps bare imports to installed dependencies. **`build` never fetches.** Every dependency must already be installed at its locked commit.
+
+## Arguments
+
+<TypeTable
+  type={{
+    target: {
+      type: "string",
+      default: "the only target",
+      description: "A target name from `targets { }`. You can omit it only when the manifest declares exactly one target. Otherwise mead lists the choices.",
+    },
+  }}
+/>
+
+## Compiler invocation
+
+```bash
+<odin> build <copy>/<target.path> -out:<project>/.mead/bin/<output> [build-mode] <flags...>
+```
+
+| Target kind | Extra argument | Output on Linux | macOS | Windows |
+| --- | --- | --- | --- | --- |
+| `executable` | — | `<name>` | `<name>` | `<name>.exe` |
+| `static-library` | `-build-mode:static` | `lib<name>.a` | `lib<name>.a` | `<name>.lib` |
+| `shared-library` | `-build-mode:shared` | `lib<name>.so` | `lib<name>.dylib` | `<name>.dll` |
+
+`<odin>` is `$MEAD_ODIN`, or `odin` on `PATH`, resolved to an absolute path. Before building, mead runs `odin version` and `odin root` to make sure the compiler works. The compiler runs from the root of the build copy.
+
+## Output
+
+```txt
+building app
+built /home/you/orchard/.mead/bin/app
+```
+
+mead forwards compiler stdout and stderr. Before printing, it rewrites generated paths to your original files and corrects columns on rewritten import lines:
+
+```txt
+/home/you/orchard/src/main.odin(12:5) Error: Undeclared name: lenght
+```
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `meade.kdl declares no targets` | Add a `targets { }` block. |
+| `choose a target: app, tool, bench` | Several targets and no name. |
+| `no target named "x" in meade.kdl` | Unknown target. |
+| `unexpected argument "x"` | Extra positional argument or an option. |
+| `` dependencies are not installed; run `mead install` `` | No lockfile, but the manifest has dependencies. |
+| `` dependency "x" is not locked; run `mead install` `` | The dependency is declared but not locked. |
+| `` the declaration of "x" changed since mead.lock was written; run `mead update x` `` | The manifest and lockfile disagree. |
+| `` dependency "x" is not installed at its locked commit; run `mead install` `` | `deps/` is stale or missing. |
+| `target "x": package directory … does not exist` | The target's `path` doesn't exist. |
+| `…: import "x" is ambiguous in the project: …` | A dependency name collides with a local package. See [Ambiguity](/guide/bare-imports#ambiguity). |
+| `build of x failed` | The compiler exited non-zero. |

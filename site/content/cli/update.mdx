@@ -1,0 +1,55 @@
+---
+title: mead update
+description: Resolve selections again at their origins, report old and new commits, and install the result.
+seo:
+  title: "mead update: re-resolve dependency revisions"
+icon: refresh-cw
+sidebar:
+  label: update
+---
+
+<Synopsis cmd="mead update [name...]" />
+
+`update` is [`install`](/cli/install) with fresh resolution. It resolves the named selections (or **all** of them if you name none) at their origins, even when they're already locked. Then it runs a full install.
+
+## Arguments
+
+<TypeTable
+  type={{
+    "name...": {
+      type: "string[]",
+      default: "every dependency and tool",
+      description: "Dependency or tool names from meade.kdl. Selections you don't name keep their locked commits.",
+    },
+  }}
+/>
+
+## When to use it
+
+- A **branch** moved and you want its new tip.
+- A **tag** was re-pointed at a different commit.
+- You **edited a declaration** in `meade.kdl` (its origin, selector, or `path`), and `install` refused to continue.
+
+A `rev` selection always resolves to the same commit.
+
+## Output
+
+Each re-resolved name prints exactly one of these:
+
+```txt
+resolved image: tag v2.0.1 -> 8f02c1d9e6b3                    # wasn't locked before
+updated renderer: 4b1d9c0e2a77 -> 91aa03be5f12 (refs/heads/development)
+geometry is unchanged at 6e93eafa715d (refs/tags/v1.2.3)
+noise is unchanged at 0123456789ab (exact commit)
+installed 4 dependencies and 1 tool
+```
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `meade.kdl declares no dependency or tool named "x"` | Unknown name. |
+| `update resolves selections at their origins and cannot run offline` | `--offline` isn't accepted. |
+| `unknown option "-x" for update` | `update` has no other options. |
+
+`update` can fail with any of the [install errors](/cli/install#errors) as well.

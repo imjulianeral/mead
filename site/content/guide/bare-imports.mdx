@@ -1,0 +1,80 @@
+---
+title: Bare imports & the build copy
+description: How mead lets you write import "example_pkg" and still build with the stock Odin compiler.
+seo:
+  title: "Bare imports in Odin and the build copy"
+icon: git-merge
+---
+
+In your source, you import a dependency by its **manifest name**, with no collection prefix and no path:
+
+```odin
+import example "example_pkg"
+import "renderer"
+```
+
+Stock Odin resolves an unprefixed import **relative to the importing file**, so plain `odin build` won't find `deps/`. mead's compiler adapter fills that gap.
+
+## The generated build copy
+
+When you run `mead build <target>`, mead:
+
+<Steps>
+  <Step title="Checks installation">
+    Every declared dependency must be locked and installed at its locked commit. Otherwise mead stops and tells you to run `mead install`.
+  </Step>
+  <Step title="Copies the project">
+    It copies the project into `.mead/build/<target>/project/`, leaving out the top-level `deps`, `.mead`, `.git`, `.hg`, `.jj`, and `.svn` entries. Then it copies each installed dependency (without `.git`) to `deps/<name>/` inside that copy.
+  </Step>
+  <Step title="Rewrites import literals">
+    It tokenizes every `.odin` file with `core:odin/tokenizer` and replaces the string literal after `import` (but never after `foreign import`) **only when its value exactly matches a declared name**.
+  </Step>
+  <Step title="Compiles">
+    It runs `odin build <copy>/<target.path> -out:.mead/bin/<output>` with the target's flags, from the copy's root.
+  </Step>
+  <Step title="Maps diagnostics back">
+    It rewrites the paths in compiler output to your original files.
+  </Step>
+</Steps>
+
+Your sources and the installed sources under `deps/` never change.
+
+## What a rewrite looks like
+
+```odin src/main.odin
+import geo "example_pkg"
+import "renderer"
+```
+
+```odin .mead/build/app/project/src/main.odin
+import geo "../deps/example_pkg/src/geometry"
+import renderer "../deps/renderer/src/renderer"
+```
+
+Odin names an unaliased import after the **last path component** of its path. Without help, `"../deps/renderer/src/renderer"` would still bind `renderer`, but `"../deps/widgets/src"` would bind `src`. mead therefore adds the dependency name as an explicit alias whenever you didn't write one.
+
+## Ambiguity
+
+A dependency name might also be a local package directory beside the importing file. In the project, that's an error:
+
+```txt
+mead: error: /home/you/orchard/src/main.odin:4:8: import "geometry" is ambiguous in the project: it names a declared dependency and the local package /home/you/orchard/src/geometry. Rename the dependency in meade.kdl, or import the local package as "./geometry".
+```
+
+Dependencies that have no author manifest use the project's names, and there **a local package wins** without an error. See [Transitive dependencies](/guide/transitive-dependencies).
+
+## Compiler findings
+
+These come from the Odin `dev-2026-09` experiments:
+
+| Finding | Effect |
+| --- | --- |
+| Odin rejects `import` inside `when` blocks | Conditional imports exist only through file suffixes and `#+build` tags. mead rewrites every `.odin` file and lets the compiler choose files. |
+| Package identity holds | Every importer of a name resolves to one directory, so a type from one package is assignable in another. |
+| Relative assets work | The copy keeps your layout, so `#load("../assets/x.txt")` resolves. |
+| `#file` / `#location()` show generated paths | They report `.mead/build/<target>/project/…`. Line numbers match. Columns differ only on rewritten import lines. |
+| Diagnostics are remapped | mead rewrites `path(line:column)` to the original path and shifts columns that come after a rewritten import. The quoted source line under a diagnostic still shows the generated import text. |
+
+:::note[Editors]
+Plain OLS can't resolve bare names yet. Editor integration is a later milestone.
+:::

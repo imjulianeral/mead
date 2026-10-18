@@ -1,0 +1,46 @@
+---
+title: mead exec
+description: Run one of the project's installed tools by name, passing arguments through and exiting with the tool's own status.
+seo:
+  title: "mead exec: run a project tool"
+icon: square-terminal
+sidebar:
+  label: exec
+---
+
+<Synopsis cmd="mead exec <tool> [-- args...]" />
+
+`exec` runs `deps/.tools/<tool>/bin/<tool>` (with `.exe` on Windows), attached to your terminal. **mead exits with the tool's exit code.** It doesn't build, fetch, or check the lockfile. Run [`mead install`](/cli/install) first.
+
+## Arguments
+
+<TypeTable
+  type={{
+    tool: {
+      type: "string",
+      required: true,
+      description: "A tool name from `tools { }` in meade.kdl.",
+    },
+    "args...": {
+      type: "string[]",
+      description: "Arguments for the tool. A leading `--` is removed, and everything else passes through unchanged, including arguments that look like mead flags.",
+    },
+  }}
+/>
+
+## Examples
+
+```bash
+mead exec assetgen -- input/
+mead exec assetgen input/ --format png   # the leading -- is optional
+```
+
+The tool runs in your current working directory.
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `usage: mead exec <tool> -- <arguments>` | No tool name. |
+| `meade.kdl declares no tool named "x"` | The name isn't in `tools { }`. |
+| `` tool "x" is not installed; run `mead install` `` | No install record, or the executable is missing. |

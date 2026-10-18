@@ -1,0 +1,70 @@
+# Builds the docs site in site/ and publishes it to GitHub Pages.
+# In the repository settings, set Pages > Source to "GitHub Actions".
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer push replaces a queued one but never cancels a running deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reports the Pages origin and path: https://<owner>.github.io and /<repo>,
+      # or a custom domain and an empty path.
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - uses: nubjs/setup-nub@v0
+        with:
+          nub-version: "^0.9.0"
+          working-directory: site
+
+      - name: Install dependencies
+        run: nub ci
+
+      - name: Build
+        env:
+          DOCS_SITE: ${{ steps.pages.outputs.origin }}
+          DOCS_BASE: ${{ steps.pages.outputs.base_path }}
+        run: nub run build
+
+      # Canonical URLs, social cards, the sitemap, and links, checked against this build's URL.
+      # The browser screenshot tests stay local: their baselines depend on the machine's fonts.
+      - name: Check SEO
+        env:
+          DOCS_SITE: ${{ steps.pages.outputs.origin }}
+          DOCS_BASE: ${{ steps.pages.outputs.base_path }}
+        run: nub exec vitest run --project seo
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

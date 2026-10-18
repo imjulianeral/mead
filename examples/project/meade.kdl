@@ -1,0 +1,21 @@
+// Design example. The repositories and revisions are fictitious.
+schema 1
+
+package "orchard" version="0.1.0"
+
+dependencies {
+    dependency "example_pkg" git="https://github.com/example-author/geometry.git" release="v1.2.3" path="src/geometry"
+    dependency "image" git="https://github.com/example-author/image.git" tag="v2.0.1" path="src/image"
+    dependency "renderer" git="https://github.com/example-author/renderer.git" branch="development" path="src/renderer"
+    dependency "noise" git="https://github.com/example-author/noise.git" rev="0123456789abcdef0123456789abcdef01234567" path="src/noise"
+}
+
+tools {
+    tool "assetgen" git="https://github.com/example-author/assetgen.git" tag="v0.4.0" distribution="build" target="assetgen"
+}
+
+targets {
+    target "app" kind="executable" path="src" {
+        flags "-o:speed"
+    }
+}

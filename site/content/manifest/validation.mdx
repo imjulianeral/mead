@@ -1,0 +1,93 @@
+---
+title: Validation rules
+description: Every rule mead enforces on names, paths, origins, refs, and flags, with the exact error each one produces.
+seo:
+  title: "meade.kdl validation rules and errors"
+icon: shield-check
+---
+
+mead validates the whole manifest on every command that reads it, and reports the **first** problem with its file, line, and column.
+
+## Structure
+
+| Rule | Error |
+| --- | --- |
+| `schema` must be present | `` missing `schema 1` declaration `` |
+| Top-level node names are fixed | `unknown node "x"` |
+| Each top-level node appears once | `duplicate "tools" node (first declared on line 4)` |
+| No type annotations | `type annotations are not part of the mead schema` |
+| Container nodes take no entries | `"dependencies" takes no arguments or properties` |
+| Containers hold one child kind | `unexpected node "dep" inside "dependencies" (expected "dependency")` |
+| Leaf nodes take no children | `"dependency" does not take children` |
+| Exactly one name argument | `"dependency" takes exactly one argument: the dependency name` |
+| Name must be a string | `the dependency name of "dependency" must be a string` |
+| Only known properties | `unknown property "version" on "dependency"` |
+| No repeated properties | `duplicate property "tag" on "dependency"` |
+| Property values are strings | `property "path" must be a string` |
+
+## Names
+
+These rules apply to dependency, tool, and target names. Each name is used as an Odin identifier and as a directory name, so it has to be valid as both.
+
+| Rule | Details |
+| --- | --- |
+| Odin identifier | Use only ASCII letters, digits, and `_`, and don't start with a digit. Import prefixes (`shared:`), path separators, and version suffixes (`foo@1`) aren't allowed. |
+| Not a keyword | `asm` `auto_cast` `bit_field` `bit_set` `break` `case` `cast` `context` `continue` `defer` `distinct` `do` `dynamic` `else` `enum` `fallthrough` `for` `foreign` `if` `import` `in` `map` `matrix` `not_in` `or_break` `or_continue` `or_else` `or_return` `package` `proc` `return` `struct` `switch` `transmute` `typeid` `union` `using` `when` `where` |
+| Not reserved | `con`, `prn`, `aux`, `nul`, and `deps` are reserved in any case, and so are `com0`–`com9` and `lpt0`–`lpt9` (Windows device names). `deps` is reserved because the build copy has a `deps/` directory at its root. |
+| Unique, case-insensitively | Names that differ only in case would collide on case-insensitive filesystems: `dependency "Geo" collides with "geo" on case-insensitive filesystems`. The check runs separately within dependencies, tools, and targets. |
+
+## Paths
+
+These rules apply to `package path`, `dependency path`, and `target path`.
+
+| Rule | Error |
+| --- | --- |
+| Not empty | `a path cannot be empty` |
+| Forward slashes only | `use forward slashes` |
+| Relative (no leading `/`, no drive letter) | `the path must be relative to the repository` |
+| Doesn't climb out | `the path leaves the repository` |
+
+mead normalizes paths: it drops empty and `.` segments and resolves `..` against earlier segments. `./src//a/../geometry/` becomes `src/geometry`, and a path that normalizes to nothing becomes `.`.
+
+At install time, mead also resolves the package directory with symlinks and makes sure it's still inside the checkout.
+
+## Git origins
+
+| Form | Accepted | Notes |
+| --- | --- | --- |
+| `https://host/path` | ✓ | Credentials (`https://user@host/…`) are rejected: *use a Git credential helper*. |
+| `ssh://[user@]host/path` | ✓ | `user:password@` is rejected: *use SSH keys or an agent*. |
+| `user@host:path` | ✓ | scp-like SSH syntax. |
+| `file:///path` | ✓ | For offline mirrors and tests. |
+| `git://…`, `http://…`, others | ✗ | `unsupported origin scheme; use https://, ssh://, or user@host:path` |
+
+Origins also can't be empty, can't start with `-`, and can't contain spaces or control characters. This keeps them from ever being read as Git options.
+
+:::danger[Secrets]
+Tokens never belong in `meade.kdl` or `mead.lock`. mead reads `GITHUB_TOKEN` / `GH_TOKEN` from the environment only, and never writes them to manifests, locks, or logs.
+:::
+
+## Selectors
+
+| Rule | Error |
+| --- | --- |
+| At least one | `"x" needs one revision selector: tag, branch, rev, or release` |
+| At most one | `` "x" has both `tag` and `branch`; choose exactly one of tag, branch, rev, or release `` |
+| Non-empty string | `` `tag` must be a non-empty string `` |
+| `rev` is a full commit ID | `` `rev` must be a full 40- or 64-character commit ID `` |
+| Git ref rules | `invalid tag "v1..2": the name is not a valid Git ref` |
+
+A ref name can't start with `-`. It can't contain whitespace, control characters, `~`, `^`, `:`, `?`, `*`, `[`, or `\`, and it can't contain `..` or `@{`. It also can't end in `.lock` or `/`.
+
+## Targets & flags
+
+| Rule | Error |
+| --- | --- |
+| `kind` present | `` target "x" needs a `kind` `` |
+| `kind` valid | `target "x" has invalid kind "binary" (expected executable, static-library, or shared-library)` |
+| `path` present | `` target "x" needs a `path` `` |
+| Only `flags` children | `unexpected node "env" inside target "x" (expected "flags")` |
+| One `flags` node | `` target "x" has more than one `flags` node `` |
+| Flags are strings | `compiler flags must be strings` |
+| Flags start with `-` | `flag "speed": compiler flags must start with '-'` |
+| No mead-owned flags | `flag "-out:x": mead controls this compiler argument` |

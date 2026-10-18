@@ -1,0 +1,117 @@
+---
+title: Installation
+description: Install a prebuilt mead with one command, keep it current with mead upgrade, or build it from source.
+seo:
+  title: "Install mead, the Odin package manager"
+icon: download
+---
+
+## Install script
+
+```bash
+curl -fsSL https://github.com/OWNER/mead/releases/latest/download/install.sh | sh
+```
+
+The script downloads the release binary for your platform, checks it against the release's `SHA256SUMS`, makes sure it runs, and puts it in `~/.mead/bin/mead`. If that directory isn't on your `PATH`, the script prints the line to add for your shell. It works with `curl` or `wget`.
+
+The whole script is one function that runs on its last line, so a download cut off halfway doesn't run anything.
+
+| Variable | Effect | Default |
+| --- | --- | --- |
+| `MEAD_INSTALL` | Install root. The binary goes to `$MEAD_INSTALL/bin/mead`. | `~/.mead` |
+| `MEAD_VERSION` | Version to install, such as `0.2.0`. | The latest release |
+| `MEAD_DOWNLOAD_BASE` | Base URL of a mirror laid out like GitHub's `releases/` path. | `https://github.com/OWNER/mead/releases` |
+
+To install a particular version, pass it as an argument:
+
+```bash
+curl -fsSL https://github.com/OWNER/mead/releases/latest/download/install.sh | sh -s -- 0.2.0
+```
+
+Prebuilt binaries exist for **Linux on x86-64 and ARM64**. They're built on Ubuntu 22.04, so they need glibc 2.35 or newer. They also need Git and libcurl at runtime (`apt install git libcurl4`).
+
+## Keep it current
+
+```bash
+mead upgrade            # install the latest release
+mead upgrade --check    # just report whether one exists
+```
+
+Once a day, mead also prints a one-line notice when a newer release is out. It only does this when stderr is a terminal, and never in CI. [`mead upgrade`](/cli/upgrade) explains how both work and how to turn the notice off.
+
+To remove mead, delete `~/.mead`, and its cache too if you like (see [`MEAD_CACHE_DIR`](/reference/environment#mead_cache_dir)).
+
+## Build from source
+
+### Requirements
+
+| Requirement | Why mead needs it |
+| --- | --- |
+| [Odin compiler](https://odin-lang.org) | To build mead itself, and later to build your targets and tools. Tested with `dev-2026-09`. |
+| Git | All fetching goes through `git ls-remote`, `git fetch`, and `git read-tree`. |
+| libcurl | Used for GitHub release discovery (`release=` selectors and `mead versions`). |
+| clang (non-Windows) | Odin's native linker. Its version is part of the [toolchain fingerprint](/guide/tools#toolchain-fingerprint). |
+
+:::note[Platform support]
+mead runs on **Linux**. It type-checks for Windows and macOS with `odin check`, but no one has run or validated it on either platform yet.
+:::
+
+### Build
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <mead-repository-url> mead
+    cd mead
+    ```
+  </Step>
+  <Step title="Build the binary">
+    ```bash
+    make            # default build with -vet -strict-style → build/mead
+    make release    # optimized build with -o:speed → build/mead
+    ```
+  </Step>
+  <Step title="Put it on your PATH">
+    ```bash
+    cp build/mead ~/.local/bin/
+    mead --version
+    # mead 0.1.0
+    ```
+  </Step>
+</Steps>
+
+### Make targets
+
+| Target | What it does |
+| --- | --- |
+| `make` / `make all` | Builds `build/mead` with `-vet -strict-style`. |
+| `make release` | Builds `build/mead` with `-o:speed`. |
+| `make dist` | Builds the release files for this platform into `build/dist/`: `mead-<os>-<arch>`, `install.sh` with the repository filled in, and `SHA256SUMS`. Needs `RELEASE_REPO=owner/repo`. |
+| `make test` | Runs `unit`, `conformance`, and `e2e`. |
+| `make unit` | Runs the Odin unit tests in `src/`. Memory tracking is off, because the CLI doesn't free memory before it exits. |
+| `make conformance` | Clones the upstream KDL test suite into `build/kdl-spec` on first use, then runs mead's KDL parser against all of its cases. |
+| `make e2e` | Runs `tests/e2e.sh` against `build/mead`. The script creates local author repositories and checks 61 acceptance cases. Then `tests/release.sh` serves fake releases from a local server and checks `mead upgrade`, the update notice, and `install.sh`. |
+| `make clean` | Removes `build/`. |
+
+You can override `ODIN`, `ODIN_FLAGS`, and `KDL_SUITE` on the command line. `VERSION` sets the version mead reports, and `RELEASE_REPO` sets the GitHub repository that `mead upgrade` downloads from:
+
+```bash
+make ODIN=~/odin/odin ODIN_FLAGS="-vet"
+make release VERSION=0.2.0 RELEASE_REPO=OWNER/mead
+```
+
+A binary built without `RELEASE_REPO` works normally, but `mead upgrade` needs [`MEAD_RELEASE_REPO`](/reference/environment#mead_release_repo) to find releases.
+
+### Publishing a release
+
+Pushing a tag such as `v0.2.0` runs `.github/workflows/release.yml`. It tests and builds mead for Linux on amd64 and arm64, checks that each binary reports the tag's version, and publishes a GitHub release with the binaries, `install.sh`, and one `SHA256SUMS` covering all of them. A tag with a suffix such as `v0.3.0-rc.1` becomes a prerelease. `mead upgrade` and the install script skip prereleases unless you ask for that version.
+
+## Configure the environment
+
+All of these are optional. See [Environment variables](/reference/environment) for details.
+
+```bash
+export MEAD_CACHE_DIR=~/.cache/mead   # shared fetch & artifact cache
+export MEAD_ODIN=~/odin/odin          # compiler, if it's not on PATH
+export GITHUB_TOKEN=ghp_…             # higher GitHub API rate limit
+```

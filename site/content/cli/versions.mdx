@@ -1,0 +1,77 @@
+---
+title: mead versions
+description: List everything you can select from a Git origin. GitHub releases, version tags in SemVer order, other tags, and branches.
+seo:
+  title: "mead versions: list releases, tags, and branches"
+icon: list-tree
+sidebar:
+  label: versions
+---
+
+<Synopsis cmd="mead versions <git-url>" />
+
+`versions` queries an origin **without fetching any source** and prints every selectable revision, grouped by the selector that would pick it. It doesn't need a project.
+
+## Arguments
+
+<TypeTable
+  type={{
+    "git-url": {
+      type: "string",
+      required: true,
+      description: "An `https://`, `ssh://`, `user@host:path`, or `file://` origin. It must pass the same [origin validation](/manifest/validation#git-origins) as a manifest, so embedded credentials are rejected.",
+    },
+  }}
+/>
+
+## Output
+
+```txt
+GitHub releases (select with release="<tag>"):
+  v1.2.3                   stable     id=184467201 commit=6e93eafa715d  "Geometry 1.2.3"
+      asset geometry-linux-amd64.tar.gz id=99120044 81234 bytes sha256:4c1f…; target metadata: none
+  v1.3.0-rc.1              prerelease id=190021876 commit=a90c11e2f3d4
+
+Version tags (select with tag="<tag>"):
+  v1.3.0-rc.1              prerelease a90c11e2f3d4  refs/tags/v1.3.0-rc.1
+  v1.2.3                   stable     6e93eafa715d  refs/tags/v1.2.3
+  v1.2.0                   stable     2d7be0a14c55  refs/tags/v1.2.0
+
+Other tags:
+  nightly                  ffe01d22b9a0  refs/tags/nightly
+
+Branches (select with branch="<name>"):
+  development              4b1d9c0e2a77  refs/heads/development
+  main                     6e93eafa715d  refs/heads/main  (default)
+```
+
+### Sections
+
+<Accordion>
+  <AccordionItem title="GitHub releases (GitHub origins only)">
+    mead pages through `GET /repos/{owner}/{repo}/releases?per_page=100`. Each release shows its tag, status (`stable`, `prerelease`, or `draft`), the release ID, and the tag's commit (or `(tag not found)` when the tag doesn't exist in Git). If the release has a display name that differs from its tag, mead shows that name too. Assets are listed with ID, size, and digest, but none of them carries target metadata yet.
+
+    If the API fails, the section says `unavailable: <reason>` and the rest of the listing still prints.
+  </AccordionItem>
+  <AccordionItem title="Version tags">
+    These are tags that parse as SemVer `MAJOR.MINOR.PATCH`, with an optional leading `v`, an optional `-prerelease`, and optional `+build` metadata (which mead ignores). They're sorted **newest first** by SemVer precedence. Numbers with leading zeros don't count as versions. Annotated tags show the commit they point to.
+  </AccordionItem>
+  <AccordionItem title="Other tags">
+    All remaining tags, sorted alphabetically.
+  </AccordionItem>
+  <AccordionItem title="Branches">
+    All branches, sorted alphabetically. The branch the remote `HEAD` points to is marked `(default)`.
+  </AccordionItem>
+</Accordion>
+
+Commits are abbreviated to 12 characters in the listing. Use [`mead add`](/cli/add) with the full value.
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `usage: mead versions <git-url>` | Missing URL, extra arguments, or an option. |
+| `git origin "…": …` | The URL failed validation. |
+| `cannot list refs of <url>: …` | `git ls-remote` failed. Git's stderr follows. |
+| `the GitHub API rate limit is exhausted (resets at unix time …); set GITHUB_TOKEN for a higher limit` | Shown inside the releases section. |
+| `GitHub repository o/r was not found (private repositories need GITHUB_TOKEN)` | Shown inside the releases section. |

@@ -1,0 +1,90 @@
+---
+title: Project tools
+description: Executables that mead builds from source, at a locked commit, and runs per project with mead exec.
+seo:
+  title: "Project tools built from source"
+icon: hammer
+---
+
+A **tool** is an executable your project depends on, such as a code generator or an asset packer. mead builds it from its author's repository and installs it **per project**, so two projects can use different revisions of the same tool.
+
+```kdl meade.kdl
+tools {
+    tool "assetgen" git="https://github.com/example-author/assetgen.git" tag="v0.4.0" distribution="build" target="assetgen"
+}
+```
+
+```bash
+mead add https://github.com/example-author/assetgen.git --tool --as assetgen --tag v0.4.0
+mead install
+mead exec assetgen -- input/
+```
+
+## Requirements for the tool's repository
+
+The author's repository must contain a `meade.kdl` with an **executable** target. The tool's `target` property names that target, and it defaults to the tool name.
+
+```kdl assetgen/meade.kdl
+schema 1
+
+package "assetgen" version="0.4.0"
+
+targets {
+    target "assetgen" kind="executable" path="cmd/assetgen" {
+        flags "-o:speed"
+    }
+}
+```
+
+mead rejects a tool when:
+
+- the repository has no `meade.kdl`
+- the author's manifest has no target with that name
+- the target isn't `kind="executable"`
+- the target path is missing or leaves the repository
+- the author's manifest declares `dependencies` (tool dependency graphs aren't supported yet)
+
+`distribution="asset"` (prebuilt release binaries) is reserved, and the manifest rejects it today. Use `"build"`, the default.
+
+## Where things go
+
+```txt
+deps/.tools/assetgen/
+  source/   # full tree of the locked commit
+  bin/      # assetgen (+ any runtime files the build placed beside it)
+```
+
+`mead exec` runs `deps/.tools/<name>/bin/<name>` with your arguments, and mead exits with the tool's exit code.
+
+## The artifact cache
+
+mead builds tools into a shared, content-addressed cache at `$MEAD_CACHE_DIR/artifacts/<key>`, and then copies the build into the project. The key is a SHA-256 over:
+
+- the toolchain fingerprint (below)
+- the host OS and architecture
+- the origin, object format, and commit
+- the target name, path, and every flag
+
+If the key matches an existing artifact, mead reuses it:
+
+```txt
+reusing cached build of tool assetgen (3f9c1a7b2e40)
+```
+
+mead builds in an isolated working copy (`.mead/build/tool-<name>`), so a build script can't modify cached or installed sources. **If a build fails, the previously installed tool and the lockfile stay unchanged.**
+
+## Toolchain fingerprint
+
+`odin version` alone can't tell every compiler build apart, so the fingerprint is a digest of:
+
+- the `odin` binary itself
+- every file under the compiler's `base/`, `core/`, and `vendor/` collections
+- `clang --version` (or `$ODIN_CLANG_PATH --version`); `msvc` on Windows
+
+mead caches the content digest under `$MEAD_CACHE_DIR/toolchains/`, keyed by those files' sizes and modification times. It recomputes the digest only when a toolchain file changes, and then it prints:
+
+```txt
+fingerprinting the Odin toolchain at /home/you/odin
+```
+
+If you swap in a different compiler binary, the artifact key changes and mead rebuilds the tool.

@@ -1,0 +1,114 @@
+---
+title: Quickstart
+description: Go from an empty folder to a running Odin program with a dependency fetched from Git, locked to an exact commit.
+seo:
+  title: "Quickstart: your first Odin dependency with mead"
+icon: rocket
+---
+
+This walkthrough starts with a new project, adds one library and one tool, locks them, and runs the result.
+
+<Steps>
+  <Step title="Create a manifest">
+    Run `mead init` from your project folder. If a `src/` directory exists, mead also declares an executable target for it.
+
+    ```bash
+    mkdir -p orchard/src && cd orchard
+    mead init
+    # created /home/you/orchard/meade.kdl
+    ```
+
+    ```kdl meade.kdl
+    schema 1
+
+    package "orchard" version="0.1.0"
+
+    targets {
+        target "orchard" kind="executable" path="src"
+    }
+    ```
+
+    `init` also appends `/deps/` and `/.mead/` to `.gitignore`.
+  </Step>
+
+  <Step title="Discover what an origin offers">
+    ```bash
+    mead versions https://github.com/example-author/geometry.git
+    ```
+
+    mead lists GitHub releases (for GitHub origins), version tags newest first, other tags, and branches. Each section shows the selector that picks it: `release=`, `tag=`, or `branch=`.
+  </Step>
+
+  <Step title="Add a dependency">
+    ```bash
+    mead add https://github.com/example-author/geometry.git \
+      --as example_pkg --release v1.2.3 --path src/geometry
+    ```
+
+    ```txt
+    example_pkg release "v1.2.3" resolves to 6e93eafa715d
+    added dependency "example_pkg" to meade.kdl; run `mead install`
+    ```
+
+    mead checks that the selection exists **before** it edits `meade.kdl`. It doesn't write the lockfile yet.
+  </Step>
+
+  <Step title="Add a tool (optional)">
+    A tool is an executable that mead builds from its author's manifest. Your project can then run it.
+
+    ```bash
+    mead add https://github.com/example-author/assetgen.git --tool --as assetgen --tag v0.4.0
+    ```
+  </Step>
+
+  <Step title="Install">
+    ```bash
+    mead install
+    ```
+
+    ```txt
+    resolved example_pkg: release v1.2.3 -> 6e93eafa715d
+    resolved assetgen: tag v0.4.0 -> 7e1e798f44a1
+    fetching https://github.com/example-author/geometry.git 6e93eafa715d
+    fetching https://github.com/example-author/assetgen.git 7e1e798f44a1
+    building tool assetgen
+    installed 1 dependency and 1 tool
+    ```
+
+    This writes `mead.lock`, `deps/example_pkg/`, and `deps/.tools/assetgen/`. Commit `mead.lock`.
+  </Step>
+
+  <Step title="Import by bare name">
+    ```odin src/main.odin
+    package main
+
+    import "core:fmt"
+    import geo "example_pkg"
+
+    main :: proc() {
+        fmt.println(geo.length({3, 4}))
+    }
+    ```
+  </Step>
+
+  <Step title="Build, run, exec">
+    ```bash
+    mead build                    # → .mead/bin/orchard
+    mead run orchard -- --verbose # build, then run with arguments
+    mead exec assetgen -- input/  # run the project's tool
+    ```
+  </Step>
+</Steps>
+
+## Day-to-day
+
+```bash
+mead tree                 # what is declared, and what each name is locked to
+mead env                  # where each name resolves on disk
+mead update example_pkg   # move one selection forward
+mead install --locked     # CI: fail if meade.kdl drifted from mead.lock
+```
+
+:::tip
+Plain `odin build` can't resolve bare dependency names, because Odin resolves bare imports relative to the importing file. Use `mead build` or `mead run`. [Why?](/guide/bare-imports)
+:::

@@ -1,0 +1,87 @@
+# Publishes a GitHub release when a v* tag is pushed: one binary per platform,
+# install.sh with this repository filled in, and SHA256SUMS over all of them.
+# `mead upgrade` and install.sh download exactly these files.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  ODIN_RELEASE: dev-2026-09
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # Ubuntu 22.04 keeps the glibc requirement low enough for older distributions.
+          - runner: ubuntu-22.04
+            odin: linux-amd64
+          - runner: ubuntu-22.04-arm
+            odin: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang libcurl4-openssl-dev
+
+      - name: Install Odin
+        run: |
+          curl -fsSL -o odin.tar.gz "https://github.com/odin-lang/Odin/releases/download/$ODIN_RELEASE/odin-${{ matrix.odin }}-$ODIN_RELEASE.tar.gz"
+          mkdir -p "$RUNNER_TEMP/odin"
+          tar -xzf odin.tar.gz -C "$RUNNER_TEMP/odin" --strip-components=1
+          echo "$RUNNER_TEMP/odin" >> "$GITHUB_PATH"
+
+      - name: Check the tag matches a version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "tag $GITHUB_REF_NAME is not v<semver>"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: make test VERSION="$VERSION"
+
+      - name: Build release files
+        run: make dist VERSION="$VERSION" RELEASE_REPO="$GITHUB_REPOSITORY"
+
+      - name: Check the binary reports the tag's version
+        run: test "$(build/mead --version)" = "mead $VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.odin }}
+          path: build/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      # Each build job wrote its own SHA256SUMS; publish one over every file.
+      - name: Write SHA256SUMS
+        run: |
+          cd dist
+          rm -f SHA256SUMS
+          sha256sum mead-* install.sh > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "mead ${GITHUB_REF_NAME#v}" $prerelease

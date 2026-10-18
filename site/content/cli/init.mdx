@@ -1,0 +1,73 @@
+---
+title: mead init
+description: Create a minimal meade.kdl in the current directory and keep deps/ and .mead/ out of Git.
+seo:
+  title: "mead init: start an Odin project manifest"
+icon: sparkles
+sidebar:
+  label: init
+---
+
+<Synopsis cmd="mead init [name]" />
+
+`init` writes a new `meade.kdl` in the **current working directory**. It doesn't search parent directories.
+
+## Arguments
+
+<TypeTable
+  type={{
+    name: {
+      type: "string",
+      default: "derived from the directory name",
+      description: "The package name. If you omit it, mead derives one from the current directory's name: it keeps ASCII letters, digits, and `_`, turns `-`, `.`, and spaces into `_`, and drops everything else. If the result is empty or starts with a digit, mead prefixes `pkg_`. For example, `my-app.v2` becomes `my_app_v2`.",
+    },
+  }}
+/>
+
+`init` takes no options. Anything that starts with `-` is an error.
+
+## What it writes
+
+```kdl meade.kdl
+schema 1
+
+package "orchard" version="0.1.0"
+```
+
+If a `src/` directory exists **and** the package name is a valid [dependency-style name](/manifest/validation#names), mead also declares an executable target with the same name:
+
+```kdl meade.kdl
+schema 1
+
+package "orchard" version="0.1.0"
+
+targets {
+    target "orchard" kind="executable" path="src"
+}
+```
+
+mead parses the generated text with the real manifest reader before it writes the file, so `init` can't produce an invalid manifest.
+
+### `.gitignore`
+
+`init` makes sure `.gitignore` contains these two lines. It creates the file if needed and doesn't duplicate lines that already exist:
+
+```txt .gitignore
+/deps/
+/.mead/
+```
+
+## Output
+
+```txt
+created /home/you/orchard/meade.kdl
+```
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `/…/meade.kdl already exists` | The current directory already has a manifest. |
+| `init takes at most one argument: the package name` | You passed more than one positional argument. |
+| `unknown option "-x" for init` | `init` has no options. |
+| `cannot create a valid manifest: …` | The name you gave produced an invalid manifest (for example, an empty string). |

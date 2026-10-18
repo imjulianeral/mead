@@ -1,0 +1,99 @@
+---
+/*
+  Renders a command synopsis with typed tokens:
+    mead add <git-url> --as <name> (--tag <tag> | --branch <b>) [--path <dir>]
+  Placeholders, flags, optional groups, and choices each get their own color.
+*/
+interface Props {
+  cmd: string;
+  label?: string;
+}
+
+const { cmd, label = "Synopsis" } = Astro.props;
+
+type Kind = "cmd" | "sub" | "flag" | "ph" | "punct" | "dash" | "word" | "space";
+
+const pattern = /(<[^>]+>|--?[A-Za-z][\w-]*|--|\.\.\.|[\[\]()|]|\s+|[^\s\[\]()|<]+?(?=\.\.\.|[\s\[\]()|<]|$))/g;
+const words = cmd.match(pattern) ?? [];
+let seenWords = 0;
+const tokens = words.map((text): { text: string; kind: Kind } => {
+  if (/^\s+$/.test(text)) return { text, kind: "space" };
+  if (text.startsWith("<")) return { text, kind: "ph" };
+  if (text === "--") return { text, kind: "dash" };
+  if (text.startsWith("-")) return { text, kind: "flag" };
+  if (/^[\[\]()|]$/.test(text) || text === "...") return { text, kind: "punct" };
+  seenWords += 1;
+  if (seenWords === 1) return { text, kind: "cmd" };
+  if (seenWords === 2) return { text, kind: "sub" };
+  return { text, kind: "word" };
+});
+---
+
+<figure class="synopsis" aria-label={label}>
+  <figcaption>{label}</figcaption>
+  <code>
+    <span class="prompt" aria-hidden="true">$</span>{
+      tokens.map((t) => <span class={`t-${t.kind}`}>{t.text}</span>)
+    }
+  </code>
+</figure>
+
+<style>
+  .synopsis {
+    position: relative;
+    margin: 1.5rem 0;
+    padding: 1.1rem 1.25rem 1rem;
+    border: 1px solid var(--blume-border);
+    border-left: 4px solid var(--blume-accent);
+    border-radius: var(--blume-radius);
+    background:
+      radial-gradient(120% 140% at 100% 0%, var(--mead-glow, transparent), transparent 60%),
+      var(--blume-code-background);
+    overflow-x: auto;
+  }
+  figcaption {
+    font-family: var(--blume-font-body);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--blume-muted-foreground);
+    margin-bottom: 0.45rem;
+  }
+  code {
+    display: block;
+    font-family: var(--blume-font-mono);
+    font-size: 0.92rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    background: none;
+    padding: 0;
+    border: 0;
+    color: var(--blume-foreground);
+  }
+  .prompt {
+    color: var(--blume-muted-foreground);
+    margin-right: 0.6ch;
+    user-select: none;
+  }
+  .t-cmd {
+    font-weight: 700;
+    color: var(--blume-foreground);
+  }
+  .t-sub {
+    font-weight: 700;
+    color: var(--blume-accent);
+  }
+  .t-flag {
+    color: var(--mead-honey-deep, var(--blume-accent));
+  }
+  .t-ph {
+    font-style: italic;
+    color: var(--blume-muted-foreground);
+  }
+  .t-punct,
+  .t-dash {
+    color: var(--blume-muted-foreground);
+    opacity: 0.8;
+  }
+</style>

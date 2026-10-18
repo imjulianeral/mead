@@ -1,0 +1,91 @@
+---
+title: Examples
+description: Complete manifests for a consumer project, a source library author, and a tool author.
+seo:
+  title: "meade.kdl manifest examples"
+icon: files
+---
+
+These examples ship in the mead repository under `examples/`. The author repositories and revisions are fictitious, but mead 0.1.0 validates every file, for example with `mead tree`.
+
+<Tabs>
+  <Tab title="Consumer project" icon="app-window">
+    A project that selects a release, a tag, a branch, and a commit, and declares a source-built tool.
+
+    ```kdl examples/project/meade.kdl lineNumbers
+    // Design example. The repositories and revisions are fictitious.
+    schema 1
+
+    package "orchard" version="0.1.0"
+
+    dependencies {
+        dependency "example_pkg" git="https://github.com/example-author/geometry.git" release="v1.2.3" path="src/geometry"
+        dependency "image" git="https://github.com/example-author/image.git" tag="v2.0.1" path="src/image"
+        dependency "renderer" git="https://github.com/example-author/renderer.git" branch="development" path="src/renderer"
+        dependency "noise" git="https://github.com/example-author/noise.git" rev="0123456789abcdef0123456789abcdef01234567" path="src/noise"
+    }
+
+    tools {
+        tool "assetgen" git="https://github.com/example-author/assetgen.git" tag="v0.4.0" distribution="build" target="assetgen"
+    }
+
+    targets {
+        target "app" kind="executable" path="src" {
+            flags "-o:speed"
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Library author" icon="library">
+    An ordinary source library. It needs only a package path, with no targets.
+
+    ```kdl examples/library/meade.kdl
+    // Author example. This is an ordinary source library.
+    schema 1
+
+    package "geometry" version="1.2.3" path="src/geometry"
+    ```
+
+    <Tree>
+      <Tree.Folder name="geometry" defaultOpen>
+        <Tree.File name="meade.kdl" />
+        <Tree.Folder name="src" defaultOpen>
+          <Tree.Folder name="geometry" defaultOpen>
+            <Tree.File name="geometry.odin" />
+          </Tree.Folder>
+        </Tree.Folder>
+      </Tree.Folder>
+    </Tree>
+
+    The consumer installs it under `deps/example_pkg/`, and `import "example_pkg"` resolves to `deps/example_pkg/src/geometry`.
+  </Tab>
+  <Tab title="Tool author" icon="hammer">
+    An executable target that consumers build as a project tool.
+
+    ```kdl examples/tool/meade.kdl
+    // Author example. Mead builds this target as a project tool.
+    schema 1
+
+    package "assetgen" version="0.4.0"
+
+    targets {
+        target "assetgen" kind="executable" path="cmd/assetgen" {
+            flags "-o:speed"
+        }
+    }
+    ```
+
+    <Tree>
+      <Tree.Folder name="assetgen" defaultOpen>
+        <Tree.File name="meade.kdl" />
+        <Tree.Folder name="cmd" defaultOpen>
+          <Tree.Folder name="assetgen" defaultOpen>
+            <Tree.File name="main.odin" />
+          </Tree.Folder>
+        </Tree.Folder>
+      </Tree.Folder>
+    </Tree>
+
+    The consumer receives the executable under `deps/.tools/assetgen/bin/`.
+  </Tab>
+</Tabs>

@@ -1,0 +1,109 @@
+---
+title: mead install
+description: Install every locked selection under deps/, resolve new ones, build tools, and write mead.lock. All or nothing.
+seo:
+  title: "mead install: lock and install Odin dependencies"
+icon: download
+sidebar:
+  label: install
+---
+
+<Synopsis cmd="mead install [--locked] [--offline]" />
+
+`install` makes `deps/` match `meade.kdl` and `mead.lock`. It **reuses locked commits** and resolves only declarations that aren't locked yet. Either every fetch and build succeeds and mead publishes the results together, or nothing changes.
+
+## Options
+
+<TypeTable
+  type={{
+    "--locked": {
+      type: "flag",
+      description: "Require an existing mead.lock whose `manifest_hash` matches the current manifest. Use this in CI to catch a meade.kdl that changed without a lockfile update.",
+    },
+    "--offline": {
+      type: "flag",
+      description: "Forbid network access. Every declaration must already be locked, and every locked commit must already be in the shared cache.",
+    },
+  }}
+/>
+
+You can combine both: `mead install --locked --offline` reproduces an install exactly from the cache.
+
+## Phases
+
+<Steps>
+  <Step title="Lock check">
+    With `--locked`, mead verifies that the lockfile exists and that its declaration hash matches the manifest.
+  </Step>
+  <Step title="Plan">
+    For each dependency and tool, if a locked entry exists, mead checks that the declaration still matches it (origin, selector, `path`; for tools also `distribution` and `target`) and reuses the locked commit. Otherwise mead resolves the selector at the origin and prints `resolved <name>: <kind> <value> -> <commit>`.
+  </Step>
+  <Step title="Fetch & stage dependencies">
+    If a dependency is already installed at the right commit, mead leaves it in place. Otherwise mead makes sure the commit is in the shared cache, then exports its full tree into `.mead/tmp/<id>/deps/<name>`. mead then reads the author manifest, chooses the package path, checks that it stays inside the checkout (after resolving symlinks), and checks the author's own dependencies.
+  </Step>
+  <Step title="Build tools">
+    mead locates the Odin toolchain (only if the project has tools). For each tool it stages the source, validates the author's target, computes the artifact key, and builds the tool, or reuses a cached artifact. See [Project tools](/guide/tools).
+  </Step>
+  <Step title="Publish">
+    mead swaps each staged directory into `deps/` with a rename and removes the old content only after the new content is in place. It removes installations that the manifest no longer declares, writes `mead.lock` (only if it changed) and `.mead/state.json`, and deletes `.mead/tmp/`.
+  </Step>
+</Steps>
+
+## Output
+
+```txt
+resolved example_pkg: release v1.2.3 -> 6e93eafa715d
+resolved assetgen: tag v0.4.0 -> 7e1e798f44a1
+fetching https://github.com/example-author/geometry.git 6e93eafa715d
+fetching https://github.com/example-author/assetgen.git 7e1e798f44a1
+building tool assetgen
+installed 1 dependency and 1 tool
+```
+
+When everything is already in place, `install` makes no network calls:
+
+```txt
+installed 1 dependency and 0 tools
+```
+
+If you remove a declaration from `meade.kdl`, the next install removes its files:
+
+```txt
+removing renderer
+removing tool assetgen
+```
+
+## Package path resolution
+
+The directory that a bare name resolves to is chosen in this order:
+
+1. The consumer's `path=` on the dependency.
+2. The author's `package "…" path="…"` in their `meade.kdl`.
+3. `.` (the repository root).
+
+If the author manifest is **invalid**, the install fails unless you set `path=` yourself. With `path=` set, mead warns and ignores the author manifest. If the chosen directory contains no `.odin` files, mead also warns.
+
+## Warnings
+
+```txt
+mead: warning: geometry uses Git submodules, which mead does not fetch
+mead: warning: dependency "geometry": src/geometry contains no .odin files
+mead: warning: ignoring the invalid author manifest of "geometry": deps/geometry/meade.kdl:3:1: …
+```
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `--locked needs an existing mead.lock` | `--locked` without a lockfile. |
+| `` meade.kdl changed since mead.lock was written; run `mead install` without --locked, or `mead update <name>` `` | The declaration hash differs. |
+| `` the declaration of "x" in meade.kdl differs from mead.lock; run `mead update x` to resolve it again `` | You edited a locked declaration. |
+| `"x" is not locked, and --offline forbids resolving it` | A new declaration with `--offline`. |
+| `commit … of <url> is not in the local cache, and --offline forbids network access` | The cache is missing a locked commit. |
+| `commit … is unavailable from <url> (ref …). The locked identity no longer exists at the origin.` | The origin no longer serves the locked commit, for example after a force-push. |
+| `dependency "x" has no package directory "p" at <commit>` | The package path doesn't exist. |
+| `dependency "x": package path "p" resolves outside the repository` | A symlink escapes the checkout. |
+| `dependency "x" declares its own dependencies, and mead does not install dependencies transitively yet.` | See [Transitive dependencies](/guide/transitive-dependencies). |
+| `cannot read the author manifest of "x": …` | The author's `meade.kdl` is invalid and you didn't set `path=`. |
+| `building tool "x" failed; the previously installed tool is unchanged` | The compiler failed. Its diagnostics are printed above. |
+| `` cannot find the Odin compiler `odin` on PATH (set MEAD_ODIN to its location) `` | The project has tools, but there's no compiler. |

@@ -1,0 +1,10 @@
+// Author example. Mead builds this target as a project tool.
+schema 1
+
+package "assetgen" version="0.4.0"
+
+targets {
+    target "assetgen" kind="executable" path="cmd/assetgen" {
+        flags "-o:speed"
+    }
+}

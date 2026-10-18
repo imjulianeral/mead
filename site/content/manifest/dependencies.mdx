@@ -1,0 +1,69 @@
+---
+title: dependencies
+description: Source dependencies, each one a name, a Git origin, one revision selector, and an optional package path.
+seo:
+  title: "Declaring dependencies in meade.kdl"
+icon: boxes
+---
+
+```kdl
+dependencies {
+    dependency "example_pkg" git="https://github.com/example-author/geometry.git" release="v1.2.3" path="src/geometry"
+    dependency "image" git="https://github.com/example-author/image.git" tag="v2.0.1" path="src/image"
+    dependency "renderer" git="https://github.com/example-author/renderer.git" branch="development" path="src/renderer"
+    dependency "noise" git="https://github.com/example-author/noise.git" rev="0123456789abcdef0123456789abcdef01234567" path="src/noise"
+}
+```
+
+`dependencies` takes no arguments or properties. Its only allowed child is `dependency`.
+
+## `dependency`
+
+### Argument
+
+<TypeTable
+  type={{
+    name: {
+      type: "string",
+      required: true,
+      description: "The bare import name and the directory name under deps/. It must be an Odin identifier that isn't a keyword or reserved name. See [Names](/manifest/validation#names). Names must be unique, case-insensitively.",
+    },
+  }}
+/>
+
+### Properties
+
+<TypeTable
+  type={{
+    git: {
+      type: "string",
+      required: true,
+      description: "The origin URL. See [Git origins](/manifest/validation#git-origins).",
+    },
+    tag: {
+      type: "string",
+      description: "Select `refs/tags/<tag>`.",
+    },
+    branch: {
+      type: "string",
+      description: "Select `refs/heads/<branch>`.",
+    },
+    rev: {
+      type: "string",
+      description: "Select an exact commit: 40 or 64 hex characters, normalized to lowercase.",
+    },
+    release: {
+      type: "string",
+      description: "Select a GitHub release by tag. GitHub origins only.",
+    },
+    path: {
+      type: "string",
+      default: "author's package path, else \".\"",
+      description: "The package directory inside the repository, relative and normalized. It overrides the author's `package path=`. It must stay inside the repository, even after resolving symlinks.",
+    },
+  }}
+/>
+
+You need exactly **one** of `tag`, `branch`, `rev`, and `release`. See [Revision selectors](/guide/selectors).
+
+`dependency` takes no children. Unknown properties and duplicate properties are both errors.

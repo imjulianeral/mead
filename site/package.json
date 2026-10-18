@@ -1,0 +1,29 @@
+{
+  "name": "site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "blume dev",
+    "build": "blume build",
+    "doctor": "blume doctor",
+    "test": "blume build && vitest run",
+    "test:update": "blume build && vitest run --update",
+    "og:home": "node scripts/og-home.ts"
+  },
+  "dependencies": {
+    "blume": "^2.1.3",
+    "zod": "^4.6.5"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "nub",
+      "version": "^0.9.0",
+      "onFail": "ignore"
+    }
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "^5.0.3",
+    "playwright": "^1.63.0",
+    "vitest": "^5.0.3"
+  }
+}

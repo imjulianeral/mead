@@ -1,0 +1,55 @@
+---
+title: package
+description: Names the package and, for library authors, says where its Odin source lives inside the repository.
+seo:
+  title: "The package node in meade.kdl"
+icon: package
+---
+
+```kdl
+package "geometry" version="1.2.3" path="src/geometry"
+```
+
+## Argument
+
+<TypeTable
+  type={{
+    name: {
+      type: "string",
+      required: true,
+      description: "The package name. It must be a non-empty string. `mead init` produces an identifier-style name, but `package` itself only requires that the name isn't empty.",
+    },
+  }}
+/>
+
+## Properties
+
+<TypeTable
+  type={{
+    version: {
+      type: "string",
+      description: "Informational. `mead tree` shows it in the header. Nothing resolves against it yet (version ranges are milestone 5).",
+    },
+    path: {
+      type: "string",
+      default: "\".\"",
+      description: "The default source package directory that this repository offers consumers, relative to the repository root. mead normalizes it (`./src//geometry/` becomes `src/geometry`). A consumer's dependency `path=` overrides it.",
+    },
+  }}
+/>
+
+`package` takes no children.
+
+## For library authors
+
+Consumers find your package directory through `path`. Without it, a bare import resolves to your repository root:
+
+```txt geometry/
+geometry/
+  meade.kdl          # package "geometry" version="1.2.3" path="src/geometry"
+  src/
+    geometry/
+      geometry.odin
+```
+
+You don't need a compiled-library target for an ordinary source library.

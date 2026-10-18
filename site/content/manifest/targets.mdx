@@ -1,0 +1,84 @@
+---
+title: targets
+description: What your project builds. Executables and libraries, with their source paths and compiler flags.
+seo:
+  title: "Build targets in meade.kdl"
+icon: target
+---
+
+```kdl
+targets {
+    target "app" kind="executable" path="src" {
+        flags "-o:speed" "-define:LOG_LEVEL=2"
+    }
+    target "core" kind="static-library" path="src/core"
+}
+```
+
+`targets` takes no arguments or properties. Its only allowed child is `target`.
+
+Targets serve two purposes. **Your project builds them** with [`mead build`](/cli/build) and [`mead run`](/cli/run). And **consumers build them**: when another project declares your repository as a [tool](/manifest/tools), mead builds the named executable target.
+
+## `target`
+
+### Argument
+
+<TypeTable
+  type={{
+    name: {
+      type: "string",
+      required: true,
+      description: "The target name, which is also the output file name. It follows the same [rules](/manifest/validation#names) as dependency names and is unique, case-insensitively.",
+    },
+  }}
+/>
+
+### Properties
+
+<TypeTable
+  type={{
+    kind: {
+      type: "\"executable\" | \"static-library\" | \"shared-library\"",
+      required: true,
+      description: "What to build. Library kinds add `-build-mode:static` or `-build-mode:shared` and change the output name (`lib<name>.a`, `lib<name>.so`, …).",
+    },
+    path: {
+      type: "string",
+      required: true,
+      description: "The Odin package directory to compile, relative to the project root and normalized.",
+    },
+  }}
+/>
+
+### Children
+
+<TypeTable
+  type={{
+    flags: {
+      type: "string...",
+      description: "At most one `flags` node. Its arguments are extra compiler arguments, passed in order after mead's own. Every flag must be a string that starts with `-`.",
+    },
+  }}
+/>
+
+## Flags mead controls
+
+mead sets the output path, build mode, and target platform itself, so a manifest can't override them:
+
+| Rejected | Why |
+| --- | --- |
+| `-out:…` | mead writes to `.mead/bin/`, or to the tool artifact cache. |
+| `-build-mode:…` | It comes from `kind`. |
+| `-collection:…` | Dependencies resolve through bare names, not collections. |
+| `-target:…`, `-subtarget:…`, `-target-features:…`, `-microarch:…` | mead owns the target platform. Tool artifact keys record the host OS and architecture. |
+| `-file`, `-no-entry-point` | mead always builds a package directory. |
+
+```txt
+mead: error: meade.kdl:14:15: flag "-out:bin/app": mead controls this compiler argument
+```
+
+Everything else, such as `-o:speed`, `-debug`, `-define:…`, `-vet`, or `-extra-linker-flags:…`, passes through.
+
+:::note
+Library kinds work for **your own** targets today. Compiled-library contracts and bindings for *consumers* are milestone 6.
+:::

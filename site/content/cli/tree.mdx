@@ -1,0 +1,42 @@
+---
+title: mead tree
+description: Show every declared dependency and tool, with its origin, selector, locked commit, and package path.
+seo:
+  title: "mead tree: dependency origins and locked commits"
+icon: git-fork
+sidebar:
+  label: tree
+---
+
+<Synopsis cmd="mead tree" />
+
+`tree` reads `meade.kdl` and, if one exists, `mead.lock`. It doesn't touch the network or `deps/`, so it also works as a quick **manifest validator**.
+
+## Output
+
+```txt
+orchard 0.1.0
+├── example_pkg  https://github.com/example-author/geometry.git  release=v1.2.3 -> 6e93eafa715d  path=src/geometry
+├── renderer  https://github.com/example-author/renderer.git  branch=development -> 4b1d9c0e2a77  path=src/renderer
+│    └── image (author-declared, provided by the project)
+├── image  https://github.com/example-author/image.git  tag=v2.0.1 -> not locked  path=src/image
+└── tool assetgen  https://github.com/example-author/assetgen.git  tag=v0.4.0 -> 7e1e798f44a1  target=assetgen
+```
+
+### Line format
+
+| Part | Meaning |
+| --- | --- |
+| Header | `package` name and `version`. If the manifest has no `package`, mead uses the project directory name. |
+| `name  origin` | The declaration name and its `git` URL. |
+| `kind=value` | The selector as written in the manifest. |
+| `-> commit` | The locked commit (12 characters), or `not locked`. |
+| `path=` | Dependencies: the package path from the lock, or the manifest's `path`, or `?` when neither is known. |
+| `target=` | Tools: the author target name. |
+| `└── name (author-declared, …)` | Names the dependency's own manifest declares. Your project provides them. |
+
+Dependencies come first, then tools, each in manifest order.
+
+## Errors
+
+`tree takes no arguments`, plus any manifest or lockfile validation error.

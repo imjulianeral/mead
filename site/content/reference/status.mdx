@@ -1,0 +1,59 @@
+---
+title: Implementation status
+description: What mead 0.1.0 implements, where it differs from the design, what the compiler experiments found, and what comes next.
+seo:
+  title: "mead implementation status"
+icon: milestone
+---
+
+mead 0.1.0 implements **design milestones 1 through 3 on Linux**. It's written in Odin and builds with the stock compiler (tested with `dev-2026-09`).
+
+## Milestones
+
+| Milestone | Status | Evidence |
+| --- | --- | --- |
+| 1. Manifest and discovery | <Badge color="green">Done</Badge> | A KDL 2.0.0 reader passes all 338 upstream test cases. Schema validation rejects duplicate properties and selectors. `mead versions` lists GitHub releases across pages, version tags in SemVer order, other tags, branches, and prereleases. |
+| 2. Locked source builds | <Badge color="green">Done</Badge> | Bare imports build from root and nested packages. Shared types keep one package identity. `#load` assets work. Original and installed sources stay unchanged. A moved branch or tag keeps the locked commit. |
+| 3. Source-built tools | <Badge color="green">Done</Badge> | Two projects use different tool revisions. A failed build preserves the installed tool and the lockfile. A different compiler binary changes the artifact key. |
+| 4. Dependency graphs | <Badge color="gray">Not started</Badge> | mead reports author-declared dependencies instead of ignoring them. See [Transitive dependencies](/guide/transitive-dependencies). |
+| 5. Release assets and ranges | <Badge color="gray">Not started</Badge> | mead rejects `distribution="asset"` with an explanation. SemVer ordering exists for discovery output. |
+| 6. Compiled libraries | <Badge color="gray">Not started</Badge> | Project targets can use the `static-library` and `shared-library` kinds. Binding contracts don't exist. |
+| Editor integration | <Badge color="gray">Not started</Badge> | Plain OLS can't resolve bare names. |
+
+`make test` runs the unit tests, the KDL conformance suite, and `tests/e2e.sh`, which checks 61 acceptance cases against local author repositories.
+
+## Differences from the design
+
+- **Local `file://` origins are accepted** in addition to HTTPS and SSH, for offline mirrors and the test suite.
+- **`rev` requires a full 40- or 64-character commit ID.**
+- **`deps` is a reserved dependency name.**
+- **A tool's `target` defaults to the tool name**, and `distribution` defaults to `build`.
+- **`mead add` resolves before it edits**, inserts text without disturbing your formatting, and doesn't write the lockfile.
+- **`mead install` reuses locked declarations** and stops on drift. `--locked` also requires the whole declaration hash to match.
+- **`mead update` without names re-resolves everything.**
+- **The fetch cache is shallow** (`--depth=1`), with a fallback to the locked ref.
+- **Submodules aren't fetched**, and mead warns when it sees `.gitmodules`.
+
+## Not yet implemented
+
+- Recursive dependency graphs, root overrides, and conflict reports (milestone 4).
+- Release-asset tools, digest-verified downloads, and version ranges (milestone 5).
+- Compiled-library contracts and bindings (milestone 6).
+- Editor integration for bare names.
+- An export command for air-gapped delivery.
+- Windows and macOS support. mead type-checks for both, but no one has run it on either. On Windows, the package-path containment check doesn't resolve symlinks.
+
+## Source layout
+
+| Path | Contents |
+| --- | --- |
+| `kdl/` | The KDL 2.0.0 parser, with byte offsets for comment-preserving edits. |
+| `src/main.odin` | Argument parsing and command dispatch. |
+| `src/commands.odin` | `init`, `add`, `versions`, `update`, `exec`, `tree`, `env`. |
+| `src/manifest.odin` | The `schema 1` reader, validation, declaration hash, and text insertion. |
+| `src/lockfile.odin` | `mead.lock` and `.mead/state.json`. |
+| `src/git.odin` | `git ls-remote`, the shared bare-repository cache, commit export. |
+| `src/http.odin` | A minimal libcurl binding and the GitHub releases client. |
+| `src/install.odin` | Resolution, staging, tool builds, atomic publication. |
+| `src/adapter.odin` | The build copy, import rewriting, diagnostic mapping. |
+| `src/build.odin` | Toolchain discovery and fingerprints, `build` and `run`. |

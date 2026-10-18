@@ -1,0 +1,145 @@
+---
+title: mead add
+description: Check that a selection exists at its origin, then record it in meade.kdl as a dependency or a source-built tool.
+seo:
+  title: "mead add: record an Odin dependency from Git"
+icon: plus
+sidebar:
+  label: add
+---
+
+<Synopsis label="Add a dependency" cmd="mead add <git-url> [--as <name>] (--tag <tag> | --branch <branch> | --rev <commit> | --release <tag>) [--path <dir>]" />
+
+<Synopsis label="Add a tool" cmd="mead add <git-url> --tool [--as <name>] (--tag <tag> | --branch <branch> | --rev <commit> | --release <tag>) [--target <name>]" />
+
+`add` edits `meade.kdl` and nothing else. **It doesn't write `mead.lock` or install anything.** The next [`mead install`](/cli/install) resolves and locks the new entry.
+
+## Arguments
+
+<TypeTable
+  type={{
+    "git-url": {
+      type: "string",
+      required: true,
+      description: "The origin. Use `https://host/path`, `ssh://[user@]host/path`, `user@host:path`, or `file:///path`. Credentials in the URL are rejected. Use a Git credential helper or SSH agent instead.",
+    },
+  }}
+/>
+
+## Options
+
+<TypeTable
+  type={{
+    "--as": {
+      type: "<name>",
+      default: "derived from the URL",
+      description: "The dependency or tool name: the bare import name and the directory under deps/. If you omit it, mead takes the last URL path segment without `.git`, applies the same normalization as `mead init`, and prints `using the name \"geometry\" (choose another with --as)`.",
+    },
+    "--tag": {
+      type: "<tag>",
+      description: "Select a Git tag (`refs/tags/<tag>`).",
+    },
+    "--branch": {
+      type: "<branch>",
+      description: "Select a branch (`refs/heads/<branch>`). mead locks the branch's current commit at install time.",
+    },
+    "--rev": {
+      type: "<commit>",
+      description: "Select an exact commit. Use the full 40- or 64-character ID. mead records it without contacting the origin.",
+    },
+    "--release": {
+      type: "<tag>",
+      description: "Select a GitHub release by its tag. GitHub origins only. Draft releases are rejected.",
+    },
+    "--path": {
+      type: "<dir>",
+      description: "Dependencies only. Overrides the package directory inside the repository (repository-relative, forward slashes). If you omit it, mead uses the author's `package path=`, or the repository root if there's no author manifest.",
+    },
+    "--tool": {
+      type: "flag",
+      description: "Record a tool under `tools { }` instead of a dependency. mead writes `distribution=\"build\"`.",
+    },
+    "--target": {
+      type: "<name>",
+      default: "the tool name",
+      description: "Tools only. Names the executable target in the author's manifest. mead writes it only when it differs from --as.",
+    },
+  }}
+/>
+
+You need **exactly one** of `--tag`, `--branch`, `--rev`, and `--release`. Each option that takes a value consumes the next argument.
+
+## What it does
+
+<Steps>
+  <Step title="Validate">
+    mead validates the URL, the selector, and the option combination, then finds the project root and loads `meade.kdl`.
+  </Step>
+  <Step title="Reject duplicates">
+    A dependency (or tool) with the same name can't already exist.
+  </Step>
+  <Step title="Insert as text">
+    mead formats one declaration line and inserts it into the `dependencies { }` or `tools { }` block. If the block doesn't exist, mead appends it at the end of the file. Everything else stays byte-for-byte the same, including comments, ordering, and indentation. mead matches the indentation of the block's existing children.
+  </Step>
+  <Step title="Re-validate">
+    mead parses the edited text with the full manifest reader, so a bad name or path fails here with a located error.
+  </Step>
+  <Step title="Resolve">
+    Except with `--rev`, mead resolves the selector against the origin and prints the commit it points to.
+  </Step>
+  <Step title="Write">
+    mead writes `meade.kdl` atomically.
+  </Step>
+</Steps>
+
+## Examples
+
+```bash
+# A GitHub release, a custom name, and a package path override
+mead add https://github.com/example-author/geometry.git \
+  --as example_pkg --release v1.2.3 --path src/geometry
+```
+
+```txt
+example_pkg release "v1.2.3" resolves to 6e93eafa715d
+added dependency "example_pkg" to meade.kdl; run `mead install`
+```
+
+```kdl meade.kdl
+dependencies {
+    dependency "example_pkg" git="https://github.com/example-author/geometry.git" release="v1.2.3" path="src/geometry"
+}
+```
+
+```bash
+# A tool whose author target has a different name
+mead add https://github.com/example-author/assetgen.git --tool --as gen --tag v0.4.0 --target assetgen
+```
+
+```kdl meade.kdl
+tools {
+    tool "gen" git="https://github.com/example-author/assetgen.git" tag="v0.4.0" distribution="build" target="assetgen"
+}
+```
+
+```bash
+# An exact commit (no network)
+mead add ssh://git@example.org/noise.git --as noise --rev 0123456789abcdef0123456789abcdef01234567
+```
+
+## Errors
+
+| Message | Cause |
+| --- | --- |
+| `usage: mead add <git-url> --as <name> (--tag … )` | No URL. |
+| `` choose a revision with --tag, --branch, --rev, or --release (see `mead versions <url>`) `` | No selector. |
+| `choose exactly one of --tag, --branch, --rev, or --release` | More than one selector. |
+| `--tag needs a value` | An option that takes a value came last. |
+| `add takes one Git URL` | More than one positional argument. |
+| `--path applies to dependencies; a tool uses its author's target path` | `--path` with `--tool`. |
+| `--target applies to tools; add --tool` | `--target` without `--tool`. |
+| `dependency "x" already exists in meade.kdl` / `tool "x" already exists in meade.kdl` | Duplicate name. |
+| `` tag "v9" does not exist in <url> (see `mead versions <url>`) `` | The selector doesn't resolve. The same applies to branches. |
+| `` `release="v1"` needs a GitHub origin; use `tag="v1"` for other hosts `` | `--release` on a non-GitHub origin. |
+| `release "v1" of <url> is a draft` | Draft releases can't be selected. |
+| `meade.kdl:L:C: dependency name "…": …` | The name, path, or ref failed [validation](/manifest/validation). |

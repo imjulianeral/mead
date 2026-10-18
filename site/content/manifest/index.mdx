@@ -1,0 +1,85 @@
+---
+title: meade.kdl
+description: The project manifest. A KDL v2 document with five top-level nodes, validated strictly, and edited without disturbing your formatting.
+seo:
+  title: "meade.kdl manifest reference"
+icon: file-code
+sidebar:
+  label: Overview
+---
+
+Every mead project has a `meade.kdl` at its root. Library and tool authors put one at the root of their repository too, so consumers can learn the package path and target definitions.
+
+```kdl meade.kdl lineNumbers
+// Comments are preserved when mead edits this file.
+schema 1
+
+package "orchard" version="0.1.0"
+
+dependencies {
+    dependency "example_pkg" git="https://github.com/example-author/geometry.git" release="v1.2.3" path="src/geometry"
+}
+
+tools {
+    tool "assetgen" git="https://github.com/example-author/assetgen.git" tag="v0.4.0"
+}
+
+targets {
+    target "app" kind="executable" path="src" {
+        flags "-o:speed"
+    }
+}
+```
+
+## Top-level nodes
+
+| Node | Required | Children | Reference |
+| --- | --- | --- | --- |
+| `schema` | **Yes** | — | [below](#schema) |
+| `package` | No | — | [package](/manifest/package) |
+| `dependencies` | No | `dependency` nodes | [dependencies](/manifest/dependencies) |
+| `tools` | No | `tool` nodes | [tools](/manifest/tools) |
+| `targets` | No | `target` nodes (each with an optional `flags` child) | [targets](/manifest/targets) |
+
+Each top-level node can appear **at most once**, in any order. mead rejects any other node name, and it rejects KDL type annotations such as `(u8)1` everywhere.
+
+## `schema`
+
+```kdl
+schema 1
+```
+
+`schema` takes exactly one integer argument. This version of mead supports only `1`:
+
+```txt
+mead: error: meade.kdl:1:8: unsupported schema version 2 (this mead supports schema 1)
+```
+
+## KDL v2
+
+mead's parser implements **KDL 2.0.0** and passes all 338 upstream conformance cases. If you're coming from KDL v1, the key differences are:
+
+- Bare identifiers are strings: `kind=executable` is the same as `kind="executable"`.
+- Booleans and null are `#true`, `#false`, `#null`.
+- Raw strings use `#"…"#`, and multi-line strings use `"""`.
+- `/-` comments out a node, argument, property, or child block.
+
+```kdl
+dependencies {
+    /- dependency "old" git="https://example.org/old.git" tag="v1"   // temporarily disabled
+    dependency "new" git="https://example.org/new.git" tag="v2"
+}
+```
+
+## Errors are located
+
+Every validation error names the file, line, and column:
+
+```txt
+mead: error: /home/you/orchard/meade.kdl:7:5: "renderer" needs one revision selector: tag, branch, rev, or release
+mead: error: /home/you/orchard/meade.kdl:3:1: KDL syntax error: unclosed children block
+```
+
+## Lockfile hash
+
+`mead.lock` stores a `manifest_hash`: a SHA-256 over a canonical encoding of every dependency, tool, and target declaration. **`package`, comments, and formatting aren't part of it.** `mead install --locked` uses it to detect drift. See [mead.lock](/reference/lockfile#manifest_hash).

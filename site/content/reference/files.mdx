@@ -1,0 +1,103 @@
+---
+title: Files & directories
+description: Everything mead reads and writes, in the project and in the shared cache, and what belongs in version control.
+seo:
+  title: "Files and directories mead writes"
+icon: folder-tree
+---
+
+<Tree>
+  <Tree.Folder name="orchard" defaultOpen>
+    <Tree.File name="meade.kdl" />
+    <Tree.File name="mead.lock" />
+    <Tree.File name=".gitignore" />
+    <Tree.Folder name="src" />
+    <Tree.Folder name="deps" defaultOpen>
+      <Tree.Folder name="example_pkg" />
+      <Tree.Folder name=".tools" defaultOpen>
+        <Tree.Folder name="assetgen" defaultOpen>
+          <Tree.Folder name="source" />
+          <Tree.Folder name="bin" />
+        </Tree.Folder>
+      </Tree.Folder>
+    </Tree.Folder>
+    <Tree.Folder name=".mead" defaultOpen>
+      <Tree.File name="state.json" />
+      <Tree.File name="project.lock" />
+      <Tree.Folder name="build" />
+      <Tree.Folder name="bin" />
+      <Tree.Folder name="tmp" />
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
+
+## In the project
+
+| Path | Commit? | Contents |
+| --- | --- | --- |
+| `meade.kdl` | **Yes** | The [manifest](/manifest). |
+| `mead.lock` | **Yes** | The [lockfile](/reference/lockfile). |
+| `deps/<name>/` | No | The complete tree of the locked commit, without `.git`. |
+| `deps/.tools/<name>/source/` | No | The tool's source at the locked commit. |
+| `deps/.tools/<name>/bin/` | No | The built executable, plus any runtime files the build placed beside it. |
+| `.mead/state.json` | No | Machine-specific install state (below). |
+| `.mead/project.lock` | No | An exclusive `flock` for `install`, `update`, and `build`. |
+| `.mead/build/<target>/project/` | No | The [generated build copy](/guide/bare-imports) for each target. |
+| `.mead/build/tool-<name>/` | No | An isolated working copy while a tool builds. mead removes it after a successful build. |
+| `.mead/bin/` | No | Project build outputs. |
+| `.mead/tmp/` | No | Staging for `install`. mead wipes it at the start and removes it at the end. |
+
+`mead init` adds `/deps/` and `/.mead/` to `.gitignore`.
+
+### `.mead/state.json`
+
+This records what's actually installed on this machine. `build`, `exec`, and `env` read it, and mead uses it to skip re-exporting unchanged dependencies.
+
+```json .mead/state.json
+{
+  "version": 1,
+  "project_root": "/home/you/orchard",
+  "dependencies": [
+    {
+      "name": "example_pkg",
+      "commit": "6e93eafa715d63bd5812728df4b8c8ff2b70f3ce",
+      "install_dir": "/home/you/orchard/deps/example_pkg",
+      "package_dir": "/home/you/orchard/deps/example_pkg/src/geometry",
+      "package_path": "src/geometry"
+    }
+  ],
+  "tools": [
+    {
+      "name": "assetgen",
+      "commit": "7e1e798f44a1c3b0d0f9a2e6f1d4c7b8a9e0f1d2",
+      "artifact_key": "3f9c1a7b2e40…",
+      "executable": "/home/you/orchard/deps/.tools/assetgen/bin/assetgen"
+    }
+  ]
+}
+```
+
+If the file is unreadable, mead warns (`ignoring unreadable …/state.json`) and treats nothing as installed. The next install rebuilds it.
+
+## Shared cache
+
+The cache speeds up repeated installs across projects, but **it never replaces a project's own `deps/`**. Its location comes from [`MEAD_CACHE_DIR`](/reference/environment#mead_cache_dir).
+
+| Path | Contents |
+| --- | --- |
+| `git/<repo>-<hash16>.git` | Shallow bare repositories, one per origin. The name is the cleaned last URL segment plus the first 16 hex characters of SHA-256(url). Fetched commits are pinned under `refs/mead/keep/`. |
+| `git/*.lock` | Per-repository `flock` files. |
+| `artifacts/<key>/bin/` | Tool builds, content-addressed by [artifact key](/guide/tools#the-artifact-cache). |
+| `artifacts/<key>.lock` | Per-artifact `flock` files. |
+| `toolchains/<meta-key>` | Cached [toolchain fingerprints](/guide/tools#toolchain-fingerprint). |
+| GitHub responses | API responses, cached with ETags to save rate limit. |
+| `update-check.json` | When mead last checked for a new release, the latest tag it saw, and when it last showed the [update notice](/cli/upgrade#the-daily-notice). |
+
+New cache entries are built in temporary directories and published with a rename, so an interrupted run never leaves a half-written entry.
+
+## Atomicity guarantees
+
+- `install` stages everything under `.mead/tmp/` and publishes only **after every fetch and build has succeeded**.
+- Each `deps/` entry is replaced by renaming the old content aside, renaming the new content in, and only then deleting the old content.
+- `meade.kdl`, `mead.lock`, and `state.json` are written to `<file>.tmp-<pid>` and renamed into place.
+- A failed tool build leaves the previous tool **and** the lockfile untouched.

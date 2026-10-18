@@ -1,0 +1,44 @@
+---
+title: Transitive dependencies
+description: mead doesn't install dependency graphs recursively yet. Here's how author-declared dependencies behave in 0.1.0.
+seo:
+  title: "Transitive dependencies in mead"
+icon: network
+---
+
+Recursive dependency graphs are **milestone 4** and aren't implemented yet. mead still reads each dependency's author manifest, so it doesn't silently ignore what a dependency needs.
+
+## Declare them yourself
+
+Suppose a dependency's `meade.kdl` declares dependencies of its own that your project doesn't declare. Then `mead install` fails and prints declarations you can copy:
+
+```txt
+mead: error: dependency "renderer" declares its own dependencies, and mead does not install dependencies transitively yet.
+Declare them in meade.kdl under the same names, for example:
+    dependency "image" git="https://github.com/example-author/image.git" tag="v2.0.1"
+```
+
+Once you declare them **under the same names**, the dependency's own bare imports resolve, within its author's scope, to your project's installations.
+
+## Name scopes
+
+| Importing code | Names it can see |
+| --- | --- |
+| Your project | Every dependency declared in your `meade.kdl`. |
+| A dependency **with** an author manifest | Only the names its author declared, mapped to your installations. |
+| A dependency **without** an author manifest | Every name your project declares, except that a local package directory with the same name beside the importing file wins. |
+
+`mead tree` shows author-declared names under each dependency:
+
+```txt
+orchard 0.1.0
+├── renderer  https://github.com/example-author/renderer.git  branch=development -> 4b1d9c0e2a77  path=src/renderer
+│    └── image (author-declared, provided by the project)
+└── image  https://github.com/example-author/image.git  tag=v2.0.1 -> 8f02c1d9e6b3  path=src/image
+```
+
+## Other limits
+
+- If a dependency's author manifest declares **tools**, mead ignores them. It installs only your project's own tools.
+- mead doesn't fetch **Git submodules**. It warns when a dependency has a `.gitmodules` file.
+- If a tool's repository declares **dependencies**, mead rejects it.

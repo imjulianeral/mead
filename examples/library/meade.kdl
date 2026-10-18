@@ -1,0 +1,4 @@
+// Author example. This is an ordinary source library.
+schema 1
+
+package "geometry" version="1.2.3" path="src/geometry"

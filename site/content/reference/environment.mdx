@@ -1,0 +1,69 @@
+---
+title: Environment variables
+description: "Every environment variable mead reads: the cache location, the Odin compiler, GitHub tokens, update checks, and release sources."
+seo:
+  title: "mead environment variables"
+icon: variable
+---
+
+## `MEAD_CACHE_DIR`
+
+The shared fetch and artifact cache. Relative values are made absolute against the working directory.
+
+| Platform | Default |
+| --- | --- |
+| Linux & other Unix | `$XDG_CACHE_HOME/mead`, or `$HOME/.cache/mead` |
+| macOS | `$HOME/Library/Caches/mead` |
+| Windows | `%LOCALAPPDATA%\mead\cache` |
+
+```bash
+MEAD_CACHE_DIR=/srv/ci-cache/mead mead install --locked
+```
+
+## `MEAD_ODIN`
+
+The Odin compiler. A bare name is looked up on `PATH`, and a value that contains `/` is used as a path. The default is `odin`.
+
+mead needs the compiler for `build`, `run`, and for `install`/`update` when the project has tools. It runs `odin version` and `odin root` to identify the toolchain.
+
+```bash
+MEAD_ODIN=~/odin-dev-2026-09/odin mead build
+```
+
+## `GITHUB_TOKEN` / `GH_TOKEN`
+
+An optional token for the GitHub REST API. mead uses it for `release=` resolution, for the releases section of `mead versions`, and for `mead upgrade` and its daily check. When both are set, `GITHUB_TOKEN` wins. mead sends it as `Authorization: Bearer …`.
+
+- It raises the rate limit. Without a token, an exhausted limit fails with `the GitHub API rate limit is exhausted (resets at unix time …); set GITHUB_TOKEN for a higher limit`.
+- Private repositories need it. Without a token they fail with `GitHub repository o/r was not found (private repositories need GITHUB_TOKEN)`.
+- **The token never enters manifests, locks, or logs.**
+
+Git operations (`ls-remote`, `fetch`) don't use this token. They authenticate through your normal Git credential helper or SSH agent.
+
+## `MEAD_NO_UPDATE_CHECK`
+
+Any non-empty value turns off the daily [new-version notice](/cli/upgrade#the-daily-notice), along with the request to GitHub behind it. `mead upgrade` still works.
+
+## `CI`
+
+When `CI` is set, as it is on most CI services, mead skips the update notice.
+
+## `MEAD_RELEASE_REPO`
+
+The GitHub repository, as `owner/repo`, that [`mead upgrade`](/cli/upgrade) and the update notice read releases from. Release builds have it built in, so you only need it for a mead you built yourself without `RELEASE_REPO`.
+
+## `MEAD_RELEASE_API`
+
+A full API base URL that replaces `https://api.github.com/repos/<owner>/<repo>`, for a mirror that serves the same `releases/latest` and `releases/tags/<tag>` JSON. mead's own tests point it at a local server.
+
+## `ODIN_CLANG_PATH`
+
+Odin's own variable for the native linker. mead reads it (default `clang`) and includes `--version` output in the [toolchain fingerprint](/guide/tools#toolchain-fingerprint), so changing linkers invalidates cached tool builds.
+
+## `XDG_CACHE_HOME`, `HOME`, `LOCALAPPDATA`
+
+These determine the default cache location (above).
+
+## `PATH`
+
+mead uses it to find `odin` and `clang`. It also needs `git` on `PATH`.
