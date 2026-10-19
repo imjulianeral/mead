@@ -41,6 +41,59 @@ article h1 {
   letter-spacing: -0.02em;
 }
 
+[data-blume-header] a[href^="https://github.com/"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  gap: 0;
+  padding: 0;
+  /* Keep the link text as its accessible name. */
+  font-size: 0;
+}
+
+[data-blume-header] a[href^="https://github.com/"]::before {
+  content: "";
+  width: 1.125rem;
+  height: 1.125rem;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%0A%20%20%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M8%200C3.58%200%200%203.58%200%208C0%2011.54%202.29%2014.53%205.47%2015.59C5.87%2015.66%206.02%2015.42%206.02%2015.21C6.02%2015.02%206.01%2014.39%206.01%2013.72C4%2014.09%203.48%2013.23%203.32%2012.78C3.23%2012.55%202.84%2011.84%202.5%2011.65C2.22%2011.5%201.82%2011.13%202.49%2011.12C3.12%2011.11%203.57%2011.7%203.72%2011.94C4.44%2013.15%205.59%2012.81%206.05%2012.6C6.12%2012.08%206.33%2011.73%206.56%2011.53C4.78%2011.33%202.92%2010.64%202.92%207.58C2.92%206.71%203.23%205.99%203.74%205.43C3.66%205.23%203.38%204.41%203.82%203.31C3.82%203.31%204.49%203.1%206.02%204.13C6.66%203.95%207.34%203.86%208.02%203.86C8.7%203.86%209.38%203.95%2010.02%204.13C11.55%203.09%2012.22%203.31%2012.22%203.31C12.66%204.41%2012.38%205.23%2012.3%205.43C12.81%205.99%2013.12%206.7%2013.12%207.58C13.12%2010.65%2011.25%2011.33%209.47%2011.53C9.76%2011.78%2010.01%2012.26%2010.01%2013.01C10.01%2014.08%2010%2014.94%2010%2015.21C10%2015.42%2010.15%2015.67%2010.55%2015.59C13.71%2014.53%2016%2011.53%2016%208C16%203.58%2012.42%200%208%200Z%22%2F%3E%0A%3C%2Fsvg%3E") center / contain no-repeat;
+}
+
+[data-blume-header] a[href^="https://github.com/"] > svg {
+  display: none;
+}
+
+[data-blume-header] a[href^="https://github.com/"]:focus-visible {
+  outline: 2px solid var(--blume-accent);
+  outline-offset: 2px;
+}
+
+.prose pre.astro-code code {
+  max-height: none;
+  white-space: normal;
+  overflow: visible;
+}
+
+.prose pre.astro-code .line {
+  display: block;
+  min-height: 1lh;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.prose pre[data-line-numbers] .line {
+  position: relative;
+  padding-inline-start: 2.5rem;
+}
+
+.prose pre[data-line-numbers] .line::before {
+  position: absolute;
+  inset-inline-start: 0;
+  margin: 0;
+}
+
 ::selection {
   background: var(--mead-glow);
 }

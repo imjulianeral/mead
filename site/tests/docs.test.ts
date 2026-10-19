@@ -52,6 +52,30 @@ describe("section tabs", () => {
   });
 });
 
+describe("manifest layout", () => {
+  test.each([
+    { route: "/manifest", width: 1440 },
+    { route: "/manifest", width: 390 },
+    { route: "/manifest/examples", width: 1440 },
+    { route: "/manifest/examples", width: 390 },
+  ])("$route shows the full code at $width px", async ({ route, width }) => {
+    const { doc } = await openPage(route, { width });
+    const github = doc.querySelector<HTMLAnchorElement>('[data-blume-header] a[href^="https://github.com/"]')!;
+    expect(github.getBoundingClientRect().width).toBeGreaterThan(0);
+    expect(github.getBoundingClientRect().right).toBeLessThanOrEqual(width);
+
+    const blocks = [...doc.querySelectorAll<HTMLElement>(".prose pre.astro-code code")];
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const block of blocks) {
+      if (!block.clientWidth) continue;
+      expect(block.scrollWidth).toBeLessThanOrEqual(block.clientWidth);
+      expect(block.scrollHeight).toBeLessThanOrEqual(block.clientHeight);
+      expect(block.parentElement!.scrollHeight).toBeLessThanOrEqual(block.parentElement!.clientHeight);
+    }
+    expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+  });
+});
+
 describe("docs screenshots", () => {
   test.each([
     { name: "cli-add-light", route: "/cli/add", theme: "light" as const },

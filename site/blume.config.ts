@@ -7,8 +7,7 @@ import { defineConfig } from "blume";
 */
 const site = process.env.DOCS_SITE || "https://owner.github.io";
 const base = process.env.DOCS_BASE ?? "/mead";
-// owner/repo, set by GitHub Actions. Without it the repository links are left out.
-const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "").split("/");
+const [owner, repo] = (process.env.GITHUB_REPOSITORY || "imjulianeral/mead").split("/");
 
 const description =
   "A package manager for Odin that installs dependencies straight from their authors' Git repositories. No registry, no account, exact commits.";
@@ -42,6 +41,7 @@ export default defineConfig({
     },
   },
   navigation: {
+    cta: { label: "GitHub", href: `https://github.com/${owner}/${repo}` },
     sidebar: { display: "flat" },
     tabs: [
       { label: "Guide", path: "/guide", icon: "book-open" },

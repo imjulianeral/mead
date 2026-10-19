@@ -49,6 +49,26 @@ describe("landing page", () => {
     );
   });
 
+  test.each([1440, 768, 390])("the header and code fit at %ipx", async (width) => {
+    const { doc } = await openPage("/", { width });
+    const github = doc.querySelector<HTMLAnchorElement>('[data-blume-header] a[href^="https://github.com/"]')!;
+    expect(github.textContent?.trim()).toBe("GitHub");
+    expect(github.getBoundingClientRect().width).toBeGreaterThan(0);
+    expect(github.getBoundingClientRect().right).toBeLessThanOrEqual(width);
+
+    const install = doc.querySelector<HTMLElement>(".install code")!;
+    const range = doc.createRange();
+    range.selectNodeContents(install);
+    expect(range.getClientRects().length).toBe(1);
+    if (width >= 768) expect(install.scrollWidth).toBeLessThanOrEqual(install.clientWidth);
+
+    for (const block of doc.querySelectorAll<HTMLElement>(".kdl, .term-body")) {
+      expect(block.scrollWidth).toBeLessThanOrEqual(block.clientWidth);
+      expect(block.scrollHeight).toBeLessThanOrEqual(block.clientHeight);
+    }
+    expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+  });
+
   test("inline code keeps the space before it", async () => {
     // Regression: Astro once dropped the newline before <code>, printing "Whenmead add".
     const { doc } = await openPage("/");
